@@ -5,8 +5,6 @@ output: html_notebook
 
 ```{r echo=FALSE}
 library(ggplot2)
-library(GGally)
-library(combinat)
 
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
@@ -55,7 +53,7 @@ head(wages)
 
 ##Introduction
 ```{r}
-p <- ggplot( wages`, aes ( x = SEX, y = WAGE) )
+p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
 p + geom_boxplot() + ggtitle("Wage vs Sex")
 ```
 In this paper we woulud like to see if there is a wage gap between male and female. Using a box plot one would see that the averages for male and female are different. Using a large sample hypothesis testing we are able to confirm whether there is a difference between the average pay for males compared to female using a 95% confidence. 
@@ -88,4 +86,20 @@ p_ed_wg + geom_jitter(aes(color=SEX)) +
   geom_smooth(data=men, method='lm',formula=y~x,color="blue") + 
   scale_color_manual(name = 'SEX', values = c("blue", "pink")) 
 ```
-Looking at the same graph above and adding regression lines we are able to see that there are other factors other than education which contributes to the wage gap. Men have a higher intercept compared to women which tells us that men will make more regardless of education. But one interesting thing is the women have a higher slope compared to men which states that women will eventually make more than men if they have more years of education. 
+Looking at the same graph above and adding regression lines we are able to see that there are other factors other than education which contributes to the wage gap. This helps to re-enforce a wage gap between male and female workers based on experience. 
+
+\Section*{Comparing Linear Models}
+\begin*{align}
+M1: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex
+M2: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex + \beta_3 Sex*Education
+\end*{align}
+
+```{r}
+mod1=lm(WAGE~EDUCATION+SEX, data=wages)
+mod2=lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
+
+summary(mod1)
+summary(mod2)
+```
+From the results above we can see that Mod1 compared to Mod2 have a very similar residual standard error and from that we can conclude that fitting two different slopes are not justified. From mod1 to mod2 we can also see a slight bump in $R^2$ value, but not significant enough to draw a conclusion from. 
+
