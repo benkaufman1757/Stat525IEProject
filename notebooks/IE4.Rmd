@@ -1,0 +1,91 @@
+---
+title: "IE4"
+output: html_notebook
+---
+
+```{r echo=FALSE}
+library(ggplot2)
+library(GGally)
+library(combinat)
+
+# create dataframe
+wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
+names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
+wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
+
+# Set up factors
+wages$SOUTH <- factor(wages$SOUTH, levels=c(0,1),
+                    labels=c('North','South'))
+
+wages$SEX <- factor(wages$SEX, levels=c(0,1),
+                    labels=c('Male','Female'))
+
+wages$UNION <- factor(wages$UNION, levels=c(0,1),
+                    labels=c('Non-Unionized','Unionized'))
+
+wages$RACE <- factor(wages$RACE, levels=c(1,2,3),
+                    labels=c('Other','Hispanic', 'White'))
+
+wages$OCCUPATION <- factor(wages$OCCUPATION, levels=c(1,2,3,4,5,6),
+                    labels=c('Management','Sales','Clerical','Service','Professional','Other'))
+
+wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
+                       labels=c('Other','Manufacturing','Construction'))
+
+wages$MARR <- factor(wages$MARR, levels=c(0,1),
+                       labels=c('Unmarried','Married'))
+
+wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
+wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
+
+wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
+wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
+wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
+wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
+wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
+
+wages$WHITE <- 1*(wages$RACE == 'White')
+wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
+
+women <- subset(wages,SEX=='Female')
+men <- subset(wages,SEX=='Male')
+
+head(wages)
+```
+
+##Introduction
+```{r}
+p <- ggplot( wages`, aes ( x = SEX, y = WAGE) )
+p + geom_boxplot() + ggtitle("Wage vs Sex")
+```
+In this paper we woulud like to see if there is a wage gap between male and female. Using a box plot one would see that the averages for male and female are different. Using a large sample hypothesis testing we are able to confirm whether there is a difference between the average pay for males compared to female using a 95% confidence. 
+```{r}
+#nrow(subset(wages,SEX=='Female'))
+#nrow(subset(wages,SEX=='Male'))
+t.test(subset(wages,SEX=='Male')$WAGE, subset(wages,SEX=='Female')$WAGE, alternative = "greater")
+```
+Based on the results from using the T-test with the hypothesis test being $$H_o : \mu_{male} = \mu_{female}\\
+H_1 : \mu_{male}\neq\mu_{female}$$
+we would be to see that there is a wage gap as we reject our initial hypothesis and accept our alternative hypthoesis. This motivates us to move further in order to investigate why a wage gap exist and maybe solutions on how to fix this. 
+
+
+##Education and Wage Gap
+```{r}
+p_ed_wg = ggplot( wages, aes ( x = EDUCATION, y = WAGE) ) 
+p_ed_wg + geom_jitter(aes(color=SEX)) + scale_color_manual(name = 'SEX', values = c("blue", "pink"))
+```
+Using a scatter plot we were able to see a lot of data overlapping in one area. We then switched to using a histogram which allowed us to see more clearly whether this was true or not. 
+
+```{r}
+ggplot(wages, aes(EDUCATION, fill = SEX)) + geom_histogram(position = 'dodge') + scale_fill_manual(values=c("blue", "pink")) + scale_x_continuous(breaks=seq(0,19,1))
+```
+The histogram above shows the highest level of education a male or female have in our data set. One can see that on average male and females mostly have 12 years of education which translates to finishing high school. Another observation is males having more high levels of education compared to females. Based on everyday life we would expect that having more education would increase one's wage.
+
+Our second hypthesis is people are paided proportional to their level of education which explains the reason for a wage gape between males and females. So if females and males have the same levels of education then a wage gap would not exist. 
+```{r}
+p_ed_wg + geom_jitter(aes(color=SEX)) + 
+  geom_smooth(data=women, method='lm',formula=y~x,color="pink") +
+  geom_smooth(data=men, method='lm',formula=y~x,color="blue") + 
+  scale_color_manual(name = 'SEX', values = c("blue", "pink")) 
+```
+Looking at the same graph above and adding regression lines we are able to see that there are other factors other than education which contributes to the wage gap. Men have a higher intercept compared to women which tells us that men will make more regardless of education. But one interesting thing is the women have a higher slope compared to men which states that women will eventually make more than men if they have more years of education. 
