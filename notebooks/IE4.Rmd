@@ -95,11 +95,40 @@ M2: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex + \beta_
 \end*{align}
 
 ```{r}
-mod1=lm(WAGE~EDUCATION+SEX, data=wages)
-mod2=lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
+M1=lm(WAGE~EDUCATION+SEX, data=wages)
+M2=lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
 
-summary(mod1)
-summary(mod2)
+summary(M1)
+summary(M2)
 ```
 From the results above we can see that Mod1 compared to Mod2 have a very similar residual standard error and from that we can conclude that fitting two different slopes are not justified. From mod1 to mod2 we can also see a slight bump in $R^2$ value, but not significant enough to draw a conclusion from. 
+
+```{r}
+M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+M5 <- lm( WAGE ~ SEX + EXPERIENCE, data = wages)
+
+resid_wg_edu <- resid(M1)
+resid_exp_edu <- resid(M3)
+resid_wg_exp = resid(M5)
+
+
+avp_ed_ex <- data.frame(resid_wg_edu, resid_exp_edu)
+temp <- lm(resid_wg_edu ~ resid_exp_edu, data = avp_ed_ex)
+p_added_v_edu_exp <- ggplot( avp_ed_ex, aes ( x = resid_exp_edu, y = resid_wg_exp) ) 
+p_added_v_edu_exp + geom_point() +
+  #geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
+  geom_abline ( intercept = coef(temp)[1], slope = coef(temp)[2], color="blue" ) +
+  ggtitle("Added Variable Plot for Experience") +
+  xlab("Residuals of E[Experience|Education,Sex]") +
+  ylab("Residuals of E[Wage|Education,Sex]")
+
+summary(temp)$r.squared
+summary(M4)
+```
+Based on the results from the added variable plot we see that 7% of experience explains wages in our model. This is a large percentage as there are many other factors which can explain wages in our dataset. This gives us a reason to add experience into our linear models. 
+
+```{r}
+M7
+```
 
