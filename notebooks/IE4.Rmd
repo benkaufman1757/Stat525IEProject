@@ -1,8 +1,8 @@
 ---
 title: "IE4"
-output: html_notebook
+output:
+  pdf_document: default
 ---
-
 ```{r echo=FALSE}
 library(ggplot2)
 
@@ -48,10 +48,45 @@ wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
 women <- subset(wages,SEX=='Female')
 men <- subset(wages,SEX=='Male')
 
-head(wages)
+#head(wages)
 ```
 
 ##Introduction
+  The Goal of our project is to see whether there is a wage gap in American society between males and females. We would like to study the different reasons on why there is a wage gap and would hope to find a answer to this wage gap. The data we used was provided by Dae Young of University of Massachusetts: Amherst Mathematics Associate Professor. The data was collected in 1985 and consist of a random sample of 534 people in the work force. The predictors that we used are
+  
+* *EDUCATION* : Number of years of education
+* *SOUTH* : Indictor variable if a person is from the south or not
+    0. Not From South
+    1. From South
+* *SEX* : Catagorical variable indiciting whether one was male or female
+    0. Male
+    1. Female
+* *EXPERIENCE* : Number of years of work experience
+* *UNION* : 
+    0. Not in a Union
+    1. In a Union
+* *WAGE* : Wage earned per hour
+* *AGE* : Age in year
+* *RACE* : Catagorical variable indiciting ones race
+    1. Other
+    2. Hispanic
+    3. White
+* *OCCUPATION* : Catagorical variable indiciting ones occupation
+    1. Management
+    2. Sales
+    3. Clerical
+    4. Service
+    5. Professional 
+    6. Other
+* *SECTOR* : Catagorical variable indiciting ones sector
+    0. Other
+    1. Manufacturing
+    2. Construction
+* *MARRIED* : Catagorical variable indiciting ones marriage status
+    0. Unmarried
+    1. Married
+    
+##Checking if there is a wage gap
 ```{r}
 p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
 p + geom_boxplot() + ggtitle("Wage vs Sex")
@@ -94,11 +129,11 @@ pairs(wages[c(1,2,3,4,5,6,7)])
 ```
 From using the pairs function we can see that experience and age have a high $R^2$ value of 0.95 which shows that they are collinear. This allows us to know before hand that creating a linear model with experience and age is not recommended and that we should transform our data before creating a linear model with both experience and age. 
 
-\Section*{Comparing Linear Models}
-\begin*{align}
-M1: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex
-M2: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex + \beta_3 Sex*Education
-\end*{align}
+##Comparing Linear Models
+\begin{align}
+M1: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex\\
+M2: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex + \beta_3 Sex*Education\\
+\end{align}
 
 ```{r}
 M1=lm(WAGE~EDUCATION+SEX, data=wages)
@@ -133,8 +168,4 @@ summary(temp)$r.squared
 summary(M4)
 ```
 Based on the results from the added variable plot we see that 7% of experience explains wages in our model. This is a large percentage as there are many other factors which can explain wages in our dataset. This gives us a reason to add experience into our linear models. 
-
-```{r}
-M7
-```
 
