@@ -99,8 +99,7 @@ t.test(subset(wages,SEX=='Male')$WAGE, subset(wages,SEX=='Female')$WAGE, alterna
 ```
 Based on the results from using the T-test with the hypothesis test being $$H_o : \mu_{male} = \mu_{female}\\
 H_1 : \mu_{male}\neq\mu_{female}$$
-we would be to see that there is a wage gap as we reject our initial hypothesis and accept our alternative hypthoesis. This motivates us to move further in order to investigate why a wage gap exist and maybe solutions on how to fix this. 
-
+we would be to see that there is a wage gap as we reject our initial hypothesis and accept our alternative hypthoesis. This motivates us to move further in order to investigate why a wage gap exist and maybe solutions on how to fix this.
 
 ##Education and Wage Gap
 ```{r}
@@ -129,7 +128,7 @@ pairs(wages[c(1,2,3,4,5,6,7)])
 ```
 From using the pairs function we can see that experience and age have a high $R^2$ value of 0.95 which shows that they are collinear. This allows us to know before hand that creating a linear model with experience and age is not recommended and that we should transform our data before creating a linear model with both experience and age. 
 
-##Comparing Linear Models
+##Education
 \begin{align}
 M1: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex\\
 M2: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex + \beta_3 Sex*Education\\
