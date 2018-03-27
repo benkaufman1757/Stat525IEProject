@@ -88,6 +88,12 @@ p_ed_wg + geom_jitter(aes(color=SEX)) +
 ```
 Looking at the same graph above and adding regression lines we are able to see that there are other factors other than education which contributes to the wage gap. This helps to re-enforce a wage gap between male and female workers based on experience. 
 
+##Looking for Collinearity
+```{r}
+pairs(wages[c(1,2,3,4,5,6,7)])
+```
+From using the pairs function we can see that experience and age have a high $R^2$ value of 0.95 which shows that they are collinear. This allows us to know before hand that creating a linear model with experience and age is not recommended and that we should transform our data before creating a linear model with both experience and age. 
+
 \Section*{Comparing Linear Models}
 \begin*{align}
 M1: E(Wage|Education, Sex) &= \beta_0 + \beta_1 Education + \beta_2 Sex
