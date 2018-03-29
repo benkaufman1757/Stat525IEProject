@@ -1,13 +1,18 @@
 ---
 title: "IE4"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
 ---
 
 ```{r echo=FALSE}
 library(ggplot2)
 library(GGally)
-library(combinat)
-
+library(ggpmisc)
+library(dplyr)
+library(knitr)
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
@@ -49,43 +54,202 @@ wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
 
 women <- subset(wages,SEX=='Female')
 men <- subset(wages,SEX=='Male')
-
-head(wages)
 ```
 
-##Introduction
-```{r}
-p <- ggplot( wages`, aes ( x = SEX, y = WAGE) )
-p + geom_boxplot() + ggtitle("Wage vs Sex")
-```
-In this paper we woulud like to see if there is a wage gap between male and female. Using a box plot one would see that the averages for male and female are different. Using a large sample hypothesis testing we are able to confirm whether there is a difference between the average pay for males compared to female using a 95% confidence. 
-```{r}
-#nrow(subset(wages,SEX=='Female'))
-#nrow(subset(wages,SEX=='Male'))
-t.test(subset(wages,SEX=='Male')$WAGE, subset(wages,SEX=='Female')$WAGE, alternative = "greater")
-```
-Based on the results from using the T-test with the hypothesis test being $$H_o : \mu_{male} = \mu_{female}\\
-H_1 : \mu_{male}\neq\mu_{female}$$
-we would be to see that there is a wage gap as we reject our initial hypothesis and accept our alternative hypthoesis. This motivates us to move further in order to investigate why a wage gap exist and maybe solutions on how to fix this. 
+## Introduction
+In this paper we will be focusing around the impact of a worker's sex on their hourly wage. The dataset we are using for this project is a random sample of 534 people from the 1985 Current Population Survey (CPS) which contains cross-sectional data of potential determinants of wages. In this assignment we will use several statistical techniques we have acquired from our study combined with some real-world knowledge to try and answer some questions one may have about this dataset.
+
+## Data Definitions
+
+* *EDUCATION* : Number of years of education
+* *SOUTH* : Indictor variable if a person is from the south or not
+    0. Not From South
+    1. From South
+* *SEX* : Catagorical variable indiciting whether one was male or female
+    0. Male
+    1. Female
+* *EXPERIENCE* : Number of years of work experience
+* *UNION* : 
+    0. Not in a Union
+    1. In a Union
+* *WAGE* : Wage earned per hour
+* *AGE* : Age in year
+* *RACE* : Catagorical variable indiciting ones race
+    1. Other
+    2. Hispanic
+    3. White
+* *OCCUPATION* : Catagorical variable indiciting ones occupation
+    1. Management
+    2. Sales
+    3. Clerical
+    4. Service
+    5. Professional 
+    6. Other
+* *SECTOR* : Catagorical variable indiciting ones sector
+    0. Other
+    1. Manufacturing
+    2. Construction
+* *MARRIED* : Catagorical variable indiciting ones marriage status
+    0. Unmarried
+    1. Married
 
 
-##Education and Wage Gap
-```{r}
-p_ed_wg = ggplot( wages, aes ( x = EDUCATION, y = WAGE) ) 
-p_ed_wg + geom_jitter(aes(color=SEX)) + scale_color_manual(name = 'SEX', values = c("blue", "pink"))
+## Does a "Wage Gap" Exist between Men and Women?
+The first question we will attempt to answer is whether or not a wage gap exists between men and women. We can try to visualize the difference in male and female wages by using a box plot. From the figure below we can clearly see that the mean wage for men and women, denoted by the black line in each respective box, is unequal; on average men earn more than women.  
+```{r echo=FALSE}
+p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
+p + geom_boxplot() + ggtitle("Boxplot of Wage vs Sex")
 ```
-Using a scatter plot we were able to see a lot of data overlapping in one area. We then switched to using a histogram which allowed us to see more clearly whether this was true or not. 
 
-```{r}
-ggplot(wages, aes(EDUCATION, fill = SEX)) + geom_histogram(position = 'dodge') + scale_fill_manual(values=c("blue", "pink")) + scale_x_continuous(breaks=seq(0,19,1))
+A natural question to ask is, "Is this difference significant?" In order to answer this we must construct a statistical test. Since we have a relatively large sample, 245 women and 289 men, we will conduct a large sample hypothesis t-test with a 95% confidence interval.
+```{r echo=FALSE}
+cat(paste("Number of women: ", nrow(women), "\n","Number of men: ", nrow(men), sep = ""))
 ```
-The histogram above shows the highest level of education a male or female have in our data set. One can see that on average male and females mostly have 12 years of education which translates to finishing high school. Another observation is males having more high levels of education compared to females. Based on everyday life we would expect that having more education would increase one's wage.
+
+$$
+H_o : \mu_{male} = \mu_{female}\\
+H_a : \mu_{male}\geq\mu_{female}
+$$
+```{r echo=FALSE}
+t.test(men$WAGE, women$WAGE, alternative = "greater")
+```
+Based on the results from our t-test we must reject the null hypothesis and accept the alternative hypothesis. In other words, the difference in the average wages between men and women is statistically significant. Men make ~\$10/hr on average and women make ~\$7.87 in 1985 dollars, in 2018 dollars this would be \$23.12/hr and \$18.21/hr respectively. Now that we have established that a statistically significant wage gap exists this motivates us to investigate why a wage gap between men and women exists. 
+
+
+## Education and Wage Gap
+
+Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the more higher your level of education, the more money you will make. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that the wage gap is still present.
+
+![](images/wages_by_edu_over_lifespan.png)
+
+In this study we will not be looking numerically at the data shown above, instead we will use it qualitatively for some intuition and partial justification for adding education into our multiple linear regression model. Before just wildly throwing a term into our model we can look at the marginal plot of wage versus number of years of education.
+
+```{r echo=FALSE}
+ggpairs(wages,columns = c("EDUCATION", "WAGE"), 
+        lower = list(continuous=wrap("points", position="jitter")), 
+        aes(colour=SEX)) + 
+  ggtitle("Marginal Plot of Wage vs Education")
+```
+
+The focus of on this plot should be on the lower triangular elements. In the bottom left we have a scatterplot with jittered points with wage on the y-axis and number of years of education on the x-axis. In this scatterplot it is difficult to fully understand how many people have 12 years of education. The density plot in the top left roughly shows the percentage of the data for each level of education. To get an even better idea of this skew we found that 109 men and 110 women had exactly 12 years of education; combined, this accounts for a large part of our dataset, roughly 41%. In the bottom right we have a density plot for wages which isn't as interesting to us right now but it is worthy to note the skew in the wage distribution in this dataset. 
 
 Our second hypthesis is people are paided proportional to their level of education which explains the reason for a wage gape between males and females. So if females and males have the same levels of education then a wage gap would not exist. 
-```{r}
-p_ed_wg + geom_jitter(aes(color=SEX)) + 
-  geom_smooth(data=women, method='lm',formula=y~x,color="pink") +
-  geom_smooth(data=men, method='lm',formula=y~x,color="blue") + 
-  scale_color_manual(name = 'SEX', values = c("blue", "pink")) 
+
+The next questions we will attempt to tackle are, are people paid proportional to their level of education and is that proportion the same for men and women? In order to reason about this question we require two linear models. We will define our models as such:
+
+$$
+\begin{align}
+M1: E(Wage|Education, Sex) &= \beta_{0,1} + \beta_{1,1} Education + \beta_{2,1} Sex \\
+M2: E(Wage|Education, Sex) &= \beta_{0,2} + \beta_{1,2} Education + \beta_{2,2} Sex + \beta_{3,2} Sex:Education
+\end{align}
+$$
+
+```{r echo=FALSE}
+M1<-lm(WAGE~EDUCATION+SEX, data=wages)
+M2<-lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
+
+cat(paste("Residual Standard Error for M1: ", round(sigma(M1),digits = 4), "\n",
+          "Residual Standard Error for M2: ", round(sigma(M2),digits = 4), "\n",
+          "Coefficient for interaction term: ",
+          round(coef(M2)["EDUCATION:SEXFemale"],digits=4), "\n",
+          "Confidence interval for coefficient of interaction term: ",
+          list(round(confint(M2)["EDUCATION:SEXFemale",],digits=4)), "\n",
+          "p-value for interaction term coefficient: ", 
+          round(summary(M2)$coefficients[4,4],digits=4),
+          sep = ""))
+
 ```
-Looking at the same graph above and adding regression lines we are able to see that there are other factors other than education which contributes to the wage gap. Men have a higher intercept compared to women which tells us that men will make more regardless of education. But one interesting thing is the women have a higher slope compared to men which states that women will eventually make more than men if they have more years of education. 
+
+As we can see the RSE in both models is almost exactly the same, off by about 0.001. Using this information in conjunction with the fact that the confidence interval of the coefficient on the interaction term is not unambiguously positive or negative we can conclude that the interaction term is not signifcant so it is advisable to use one regression line for both men and women when trying to describe wage as a function of number of years of education. We can also see this lack of significance from the very large p-value. In the context of our problem this allows us to conclude that under a linear regression model that only includes education and sex to model wage the gender gap does not decrease as the level of education increases. However, what we do find is that the gender gap still exists and that men and women are not paid equally, proportionally to their level of education alone. We see this from looking at the SEXFemale coefficient in M1. The value of this coefficient is -2.124 and it has a 95% confidence interval (CI) of (-2.9154 -1.3327). Since $\beta_{2,1}$ is negative and both of the bounds of its 95% CI are negative this leads us to believe that there is a gender gap. In other words, we can say that under this model while adjusting for education on average women receive a lower wage than men. (Can we say something like "on average" 2 dollars and ten cents less at each level of education? is it constant?)
+
+```{r include=FALSE}
+coef(M1)
+confint(M1)
+```
+
+
+## Adding Experience to Our Model
+
+As it stands our model only uses sex and education as predictors. As we know from the real world, your wage might be related to the amount of experience you have had in a job. For example, more exclusive jobs normally pay more and the reason they may be exclusive is because they may require x years of experience. This allows us to hypothesize that your wage will depend upon the amount of experience you've had, more specifically, we would believe that your wage should increase with your level of experience. In order to justify adding this variable to our model we will create a separate model which attempts to model this new variable using the pre-existing regressors in our original model. We will then use this to construct an added variable plot for years of experience.
+
+$$
+\begin{align}
+M3: E(Wage|Education, Sex, Experience) &= \beta_{0,3} + \beta_{1,3} Education + \beta_{2,3} Sex + \beta_{3,3} Experience \\
+\end{align}
+$$
+
+```{r echo=FALSE}
+M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+```
+
+
+```{r echo=FALSE}
+resid_wg_edu <- resid(M1)
+resid_exp_edu <- resid(M3)
+fitted_wg_edu <- fitted(M1)
+
+avp_ed_ex <- data.frame(resid_wg_edu, resid_exp_edu, fitted_wg_edu)
+ex_avp_mod <- lm(resid_wg_edu ~ resid_exp_edu, data = avp_ed_ex)
+
+f_vs_rs <- ggplot( avp_ed_ex, aes ( x = fitted_wg_edu, y = resid_wg_edu) ) 
+f_vs_rs + geom_point() +
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M1)")))
+
+p_added_v_edu_exp <- ggplot( avp_ed_ex, aes ( x = resid_exp_edu, y = resid_wg_edu) ) 
+p_added_v_edu_exp + geom_point() +
+  geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
+  geom_abline ( intercept = coef(ex_avp_mod)[1], slope = coef(ex_avp_mod)[2], color="blue" ) +
+  ggtitle("Added Variable Plot for Experience") +
+  xlab(expression(paste(hat(e), "(M3)"))) +
+  ylab(expression(paste(hat(e), "(M1)")))
+
+cat(paste("R squared value of regression on AVP for experience:",round(summary(ex_avp_mod)$r.squared,digits = 4)))
+```
+
+In the plot of the residuals versus the fitted values for M1 something of concern is that the variance is increasing as the number of years of education is increasing; we may return to this later. If we move on to the results of the added variable plot we see that almost 8% of the remaining variance in our model is explained by adding the variable for experience to our existing model. For our purposes this is a considerable amount because it increases our total explained variability by about 50%. This leads to actually defining our new model which includes experience:
+
+$$
+\begin{align}
+M4: E(Wage|Education, Sex, Experience) &= \beta_{0,4} + \beta_{1,4} Education + \beta_{2,4} Sex + \beta_{3,4} Experience \\
+\end{align}
+$$
+
+```{r include=FALSE}
+M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+summary(M4)
+```
+
+If we examine this model we find that our residual standard error decreases from roughly 4.64 in M1 and M2 to 4.45 in M4. In real terms, this means that in either direction we are more accurate by about 15 cents per hour which equates to \$300/year in 1985 dollars (~$695 in 2018 dollars) assuming you work 40 hrs per week and take 2 weeks of vacation. (Why does our R^2 only increase by 0.2532 - 0.1884 = 0.0648 rather than 0.0798? Is it because education and experience are explaining the same thing?)
+
+## Exploring Occupation
+
+Now that we are accounting for a person's education and experience we can now try to explore the effect of a person's occupation on wage. Intuitively you can think to yourself, does a hamburger flipper make as much as a CEO of a major company; the answer is definitely not. We can apply at least some level of reasoning to this claim. Considering our current model, which accounts for education and experience, it is insufficient to claim that the CEO makes more than the hamburger flipper because the CEO has a PHD and the hamburger flipper didn't graduate high school nor is it sufficient to say that the CEO has had more experience nor is any combination of the prior two arguments. At this point we claim that the occupation you are in can determine your wage independently (enough) of education and experience. Some reasons may include the level of physical risk involved in job, for example, if there are two jobs that require the same level of education and experience and one job has a higher level of risk than the other, say a tree logger (one of the most dangerous jobs) and a cashier, we would expect the tree logger to earn more because his wage will compensate him for the additional risk he takes on. 
+
+```{r echo=FALSE}
+occ_table <- wages %>% 
+  group_by(OCCUPATION,SECTOR) %>%
+  summarise(Total = length(OCCUPATION),
+            Male = length(subset(OCCUPATION,SEX=="Male")),
+            Female = length(subset(OCCUPATION,SEX=="Female")),
+            MeanWage = round(mean(WAGE),digits = 4),
+            se = sd(WAGE))
+kable(occ_table)
+occ_table$OCC_SEC <- paste(substring(occ_table$OCCUPATION,1,4) ,substring(occ_table$SECTOR,1,4) )
+occ_table
+#kable(subset(occ_table,Total>=20))
+ggplot(occ_table, aes(x=OCC_SEC,y=MeanWage)) +
+  geom_errorbar(aes(ymin=MeanWage-se, ymax=MeanWage+se), width=.1) +
+  geom_point() + 
+  xlab("Abbreviated Occupation-Sector Combination") + 
+  ylab("Mean Wage") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+Now we can add occupation
+
+
+
+
+well here we are
