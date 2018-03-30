@@ -2,6 +2,7 @@ library(ggplot2)
 library(GGally)
 library(car)
 library(ggpmisc)
+library(MASS)
 projpath <- "~/Documents/Academics/Stat525/Project/"
 setwd(projpath)
 
@@ -369,3 +370,31 @@ summary(M4)
 
 
 ## do mincer with + sex + sex*education + sex*experience 
+
+####### Fitted vs residuals
+
+resid_M1 <- resid(M1)
+fitted_M1 <- fitted(M1)
+
+df_M1 <- data.frame(resid_M1, fitted_M1)
+
+f_vs_rs_M1 <- ggplot( df_M1, aes ( x = fitted_M1, y = resid_M1) ) 
+f_vs_rs_M1 + geom_point() +
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M1)")))
+
+###### Transformations
+
+fitted_M4 <- fitted(M4)
+temp <- data.frame(fitted_M4,wages$WAGE)
+inv_fitt_value_M1 <- ggplot( temp, aes ( x =wages.WAGE , y = fitted_M4) )
+inv_fitt_value_M1 + geom_point()
+
+# geometric mean
+gmY <- exp(mean(log(wages$WAGE)))
+boxcox(M4)
+
+
+
+
+

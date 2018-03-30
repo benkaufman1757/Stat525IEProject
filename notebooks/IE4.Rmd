@@ -7,12 +7,13 @@ output:
   pdf_document: default
 ---
 
-```{r echo=FALSE}
+```{r include=FALSE}
 library(ggplot2)
 library(GGally)
 library(ggpmisc)
 library(dplyr)
 library(knitr)
+library(MASS)
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
@@ -51,6 +52,8 @@ wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
 
 wages$WHITE <- 1*(wages$RACE == 'White')
 wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
+
+wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
 
 women <- subset(wages,SEX=='Female')
 men <- subset(wages,SEX=='Male')
@@ -160,7 +163,7 @@ cat(paste("Residual Standard Error for M1: ", round(sigma(M1),digits = 4), "\n",
 
 ```
 
-As we can see the RSE in both models is almost exactly the same, off by about 0.001. Using this information in conjunction with the fact that the confidence interval of the coefficient on the interaction term is not unambiguously positive or negative we can conclude that the interaction term is not signifcant so it is advisable to use one regression line for both men and women when trying to describe wage as a function of number of years of education. We can also see this lack of significance from the very large p-value. In the context of our problem this allows us to conclude that under a linear regression model that only includes education and sex to model wage the gender gap does not decrease as the level of education increases. However, what we do find is that the gender gap still exists and that men and women are not paid equally, proportionally to their level of education alone. We see this from looking at the SEXFemale coefficient in M1. The value of this coefficient is -2.124 and it has a 95% confidence interval (CI) of (-2.9154 -1.3327). Since $\beta_{2,1}$ is negative and both of the bounds of its 95% CI are negative this leads us to believe that there is a gender gap. In other words, we can say that under this model while adjusting for education on average women receive a lower wage than men. (Can we say something like "on average" 2 dollars and ten cents less at each level of education? is it constant?)
+As we can see the RSE in both models is almost exactly the same, off by about 0.001. Using this information in conjunction with the fact that the confidence interval of the coefficient on the interaction term is not unambiguously positive or negative we can conclude that the interaction term is not signifcant so it is advisable to use one regression line for both men and women when trying to describe wage as a function of number of years of education. We can also see this lack of significance from the very large p-value. In the context of our problem this allows us to conclude that under a linear regression model that only includes education and sex to model wage the gender gap does not decrease as the level of education increases. However, what we do find is that the gender gap still exists and that men and women are not paid equally, proportionally to their level of education alone. We see this from looking at the SEXFemale coefficient in M1. The value of this coefficient is -2.124 and it has a 95% confidence interval (CI) of (-2.9154 -1.3327). Since $\beta_{2,1}$ is negative and both of the bounds of its 95% CI are negative this leads us to believe that there is a gender gap. In other words, we can say that under this model while adjusting for education on average women receive a lower wage than men by about 1.3 to 3 dollars per hour. (Not much evidence between one or two lines)
 
 ```{r include=FALSE}
 coef(M1)
@@ -184,21 +187,22 @@ M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
 
 
 ```{r echo=FALSE}
-resid_wg_edu <- resid(M1)
-resid_exp_edu <- resid(M3)
-fitted_wg_edu <- fitted(M1)
+resid_M1 <- resid(M1)
+resid_M3 <- resid(M3)
+fitted_M1 <- fitted(M1)
 
-avp_ed_ex <- data.frame(resid_wg_edu, resid_exp_edu, fitted_wg_edu)
-ex_avp_mod <- lm(resid_wg_edu ~ resid_exp_edu, data = avp_ed_ex)
+avp_df <- data.frame(resid_M1, resid_M3, fitted_M1)
+ex_avp_mod <- lm(resid_M1 ~ resid_M3, data = avp_df)
 
-f_vs_rs <- ggplot( avp_ed_ex, aes ( x = fitted_wg_edu, y = resid_wg_edu) ) 
-f_vs_rs + geom_point() +
+f_vs_rs_M1 <- ggplot( avp_df, aes ( x = fitted_M1, y = resid_M1) ) 
+f_vs_rs_M1 + geom_point() +
+  ggtitle("Plot of Fitted vs Residuals for M1") + 
   xlab(expression(hat(y))) + 
   ylab(expression(paste(hat(e), "(M1)")))
 
-p_added_v_edu_exp <- ggplot( avp_ed_ex, aes ( x = resid_exp_edu, y = resid_wg_edu) ) 
+p_added_v_edu_exp <- ggplot( avp_df, aes ( x = resid_M3, y = resid_M1) ) 
 p_added_v_edu_exp + geom_point() +
-  geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
+  #geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
   geom_abline ( intercept = coef(ex_avp_mod)[1], slope = coef(ex_avp_mod)[2], color="blue" ) +
   ggtitle("Added Variable Plot for Experience") +
   xlab(expression(paste(hat(e), "(M3)"))) +
@@ -222,9 +226,89 @@ summary(M4)
 
 If we examine this model we find that our residual standard error decreases from roughly 4.64 in M1 and M2 to 4.45 in M4. In real terms, this means that in either direction we are more accurate by about 15 cents per hour which equates to \$300/year in 1985 dollars (~$695 in 2018 dollars) assuming you work 40 hrs per week and take 2 weeks of vacation. (Why does our R^2 only increase by 0.2532 - 0.1884 = 0.0648 rather than 0.0798? Is it because education and experience are explaining the same thing?)
 
+## Age and Collinearity
+
+Another variable we have in our dataset is age. From the charts of the wage of differently educated people of each sex we see that along the x-axis we are looking at age. An alternative way we can interpret this is that as your age increases your earnings follow a somewhat logarithmic growth, by the shape of each line. Age is interesting because after age 18 your age doesn't really effect your wage that much, we would expect it to be more of your prior work experience and education. We can make a scatterplot matrix of the variables in this model with one special one. Will define a new variable EDU_PLUS_EXP which is defined to be the number of years of education of a person plus the number of years of experience a person has.
+
+```{r echo=FALSE}
+ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE") )
+```
+
+Let's try to analyze this plot a bit. If we start from the top left we find that education and experience are negatively correlated. Intuitively this makes sense, if you aren't going to school then you are spending time working to make money. Since the correlation is so strong and probably because the experience numbers are a little rough we see that no one is really unemployed, or are unemployed for a constant number of years. If we fit a model to this we find that the estimate for the intercept is about -6. Using our knowledge of the real world this most likely means that people didn't start schooling until they were about 6 years old and have since not had a year where they would be considered "unemployed." What we also find is that age and experience are highly correlated (correlation of 0.978) which makes sense because if you are not really ever unemployed you age should go hand in hand with the number of years of experience (just shifted). The really striking chart is that of the new variable on the y axis and age on the x axis; it is nearly a perfect line with a correlation of 1 when rounding to 4 decimal places. What this means is that, from the previous graph, experience and age are collinear, and that age, education, and experience are, almost, perfectly linearly dependent and are highly collinear. What this implies for our model is that if we were to add age when we are solving the normal equations for OLS we will have a rank deficient matrix and the coefficients on our other terms wouldn't really make sense if the coefficient for age were nonzero which it very well could be since it is a free variable. That being said since it is a free variable we can set it to zero or completely omit it from the model which accomplishes the same thing. It is for this reason we will not be including age in our model.
+
+## Second Look at our Previous Models
+
+In the spirit of showing our work we have explored our dataset pretty thoroughly so far however there was an obvious red flag in one of our charts which we didn't have the knowledge about because it is contained in chapter 8 and 9 in our textbook. If we look back at our fitted versus residuals plot of M1 recreated below there is an obvious problem. What we see is a rightward opening megaphone shape which implies non-constant variance and means that our model is not very good (in loose terms). Below the fitted versus residuals plot we show the same type of plot for M4 which is the model which includes experience and we see that the problem persists.
+
+```{r echo=FALSE}
+f_vs_rs_M1 + geom_point() +
+  ggtitle("Plot of Fitted vs Residuals for M1") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M1)")))
+
+resid_M4 <- resid(M4)
+fitted_M4 <- fitted(M4)
+
+df_M4 <- data.frame(resid_M4, fitted_M4)
+
+f_vs_rs_M4 <- ggplot( df_M4, aes ( x = fitted_M4, y = resid_M4) ) 
+f_vs_rs_M4 + geom_point() +
+  ggtitle("Plot of Fitted vs Residuals for M4") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M4)")))
+```
+
+Something that seems reasonable to do is to transform our response variable, wages. We can begin to justify this by drawing and inverse fitted value plot for a given model.
+
+```{r echo=FALSE}
+fitted_M1 <- fitted(M1)
+fitted_M4 <- fitted(M4)
+inv_fitt_df <- data.frame(fitted_M1,fitted_M4, wages$WAGE)
+inv_fitt_value_M1 <- ggplot( inv_fitt_df, aes ( x =wages.WAGE , y = fitted_M1) )
+inv_fitt_value_M1 + geom_point()
+
+inv_fitt_value_M4 <- ggplot( inv_fitt_df, aes ( x =wages.WAGE , y = fitted_M4) )
+inv_fitt_value_M4 + geom_point()
+```
+
+By just looking at the graphs it seems like it would be worth while to use the logarithm of wages but we can be a bit more rigorous. By using the Box-Cox method we can determine the optimal transformation for our response variable. We will use R to compute the optimal $\lambda_y$ by sweeping over values (-2,2) for M4. 
+
+```{r echo=FALSE}
+bc <- boxcox(M4)
+optimal_l <- bc$x[which.max(bc$y)]
+```
+
+
+Since our optimal $\lambda_y$ is essentially zero we can approximate the optimal transformation by using the logarithm of wage. We can see that once we take the logarithm, the wages are approximately normally distributed.
+
+```{r echo=FALSE}
+qplot(log(wages$WAGE), geom="histogram") + xlab("log(WAGE)")
+```
+
+
+Now that we have properly justified our usage of modeling log(WAGE) rather than wage let's now define two new models:
+
+$$
+\begin{align}
+M5: E(log(Wage)|Education, Sex, Experience) &= \beta_{0,5} + \beta_{1,5} Education + \beta_{2,5} Sex + \beta_{3,5} Sex:Education
+\end{align}
+$$
+
+```{r include=FALSE}
+M5 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+summary(M5)
+```
+
+Once we fit M5 we find that our residual standard error is now 0.4523 and our $R^2$ has increased from 0.2532 to 0.2696 when going from M4 to M5. At this point our model roughly reflects a famous econometric regression model: the Mincer Earnings Equation. The model is the same as M5 with an added term that represents $EXPERIENCE^2$ with another coefficient. For our final project we will explore this model more in depth and individually explore each occupation.
+
+## Ignore bottom part, for future use
+
+
+
 ## Exploring Occupation
 
 Now that we are accounting for a person's education and experience we can now try to explore the effect of a person's occupation on wage. Intuitively you can think to yourself, does a hamburger flipper make as much as a CEO of a major company; the answer is definitely not. We can apply at least some level of reasoning to this claim. Considering our current model, which accounts for education and experience, it is insufficient to claim that the CEO makes more than the hamburger flipper because the CEO has a PHD and the hamburger flipper didn't graduate high school nor is it sufficient to say that the CEO has had more experience nor is any combination of the prior two arguments. At this point we claim that the occupation you are in can determine your wage independently (enough) of education and experience. Some reasons may include the level of physical risk involved in job, for example, if there are two jobs that require the same level of education and experience and one job has a higher level of risk than the other, say a tree logger (one of the most dangerous jobs) and a cashier, we would expect the tree logger to earn more because his wage will compensate him for the additional risk he takes on. 
+
 
 ```{r echo=FALSE}
 occ_table <- wages %>% 
@@ -245,11 +329,6 @@ ggplot(occ_table, aes(x=OCC_SEC,y=MeanWage)) +
   ylab("Mean Wage") +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
-
-
-Now we can add occupation
-
-
 
 
 well here we are
