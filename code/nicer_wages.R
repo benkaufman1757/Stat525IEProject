@@ -135,7 +135,7 @@ M1 <- lm( WAGE ~ EDUCATION + SEX, data = wages)
 M2 <- lm( WAGE ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
 M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
 M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
-M5 <- lm( WAGE ~ EXPERIENCE + SEX, data = wages)
+M5 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
 
 p_ed_wg <- ggplot( wages, aes ( x = EDUCATION, y = WAGE) ) 
 p_ed_wg + geom_jitter(aes(color=SEX)) + 
@@ -208,7 +208,7 @@ confint(M4)
 
 ggpairs(wages,columns = c("EDUCATION", "WAGE"), 
         lower = list(continuous=wrap("points", position="jitter"), 
-        diag = list(discrete = wrap("barDiag"))), 
+                     diag = list(discrete = wrap("barDiag"))), 
         aes(colour=SEX)) + 
   ggtitle("Marginal Plot of Wage vs Education")
 ggpairs(wages,columns = c("EDUCATION", "WAGE"), 
@@ -224,7 +224,7 @@ p_ed_wg + geom_jitter(aes(color=SEX)) +
   scale_color_manual(name = 'SEX', values = c("blue", "pink")) +
   stat_poly_eq(data=women,parse=T, aes(label = ..eq.label..),eq.with.lhs = "hat(y)[F]~`=`~", formula=y~x) + 
   stat_poly_eq(data=men,parse=T, aes(label = ..eq.label..),eq.with.lhs = "hat(y)[M]~`=`~", formula=y~x,label.y.npc = 0.85)
-        
+
 
 m1 <- lm( WAGE ~ EDUCATION, data = men)
 m2 <- lm( WAGE ~ EDUCATION, data = women)
@@ -306,6 +306,8 @@ temp$coefficients[4,4]
 
 sex_occ_mincer <- lm( log(WAGE) ~ EDUCATION + EXPERIENCE + EXP2 + SEX + OCCUPATION , data = wages)
 summary(sex_occ_mincer)
+
+
 
 ## EXPERIENCE AVP FOR log(WAGE) w/ M1
 
@@ -393,8 +395,67 @@ inv_fitt_value_M1 + geom_point()
 # geometric mean
 gmY <- exp(mean(log(wages$WAGE)))
 boxcox(M4)
+lambda <- 1/10
+Y <- wages$WAGE
+transformed <- gmY^(1-lambda)*((Y^lambda) -1) / lambda
+hist(transformed)
+hist(Y)
+wages$TRANSFORMED <- transformed
+
+summary(lm(TRANSFORMED~EDUCATION + SEX,wages))
+
+summary(lm(log(WAGE)~EDUCATION + SEX,wages))
+
+summary(powerTransform(M4))
 
 
+##### AVP FOR EXP^2
+
+temp1 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+temp2 <- lm( EXP2 ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+
+resid1 <- resid(temp1)
+resid2 <- resid(temp2)
+
+tempdf <- data.frame(resid1, resid2)
+p <- ggplot( tempdf, aes ( x = resid2, y = resid1) ) 
+p + geom_point()
+
+tempmod <- lm(resid1 ~ resid2, data=tempdf)
+summary(tempmod)
+
+tmp <- powerTransform ( cbind ( EDUCATION ) ~ 1, data = wages )
+summary(tmp)
+
+temp3 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE + EXP2 + OCCUPATION, data = wages)
+summary(temp3)
+avPlots(temp3)
+residualPlot(temp3)
+residualPlots(temp3)
+
+temp4 <- lm( log(WAGE) ~ EDUCATION*SEX , data = wages)
+summary(temp4)
+
+residualPlot()
+
+####### Oaxaca Decomposition
+male_ef <- lm(WAGE ~ EDUCATION, data=men)
+female_ef <- lm(WAGE ~ EDUCATION, data=women)
+
+coef(male_ef)
+coef(female_ef)
+mean(men$EDUCATION)
+mean(women$EDUCATION)
+# This is the same as M1 effectively
 
 
+resid_M5 <- resid(M5)
+fitted_M5 <- fitted(M5)
 
+df_M1 <- data.frame(resid_M5, fitted_M5)
+
+f_vs_rs_M5 <- ggplot( df_M1, aes ( x = fitted_M5, y = resid_M5) ) 
+f_vs_rs_M5 + geom_point() +
+  facet_wrap(~wages$OCCUPATION) + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M5)")))
