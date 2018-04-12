@@ -45,9 +45,9 @@ wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
 
 # scatterplot matrix
 #vars <- c ( 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 )
-#ggpairs ( wages, columns = vars )
+ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_P_EX","WAGE") )
 
-
+wages$ED_P_EX <- wages$EDUCATION + wages$EXPERIENCE
 # SEX specific graphs
 
 ################################  EDUCATION WAGE SEX  ##########################################
