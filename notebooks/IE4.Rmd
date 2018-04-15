@@ -1,27 +1,18 @@
 ---
 title: "IE4"
 output:
-<<<<<<< HEAD
-  pdf_document: default
----
-```{r echo=FALSE}
-library(ggplot2)
 
-=======
-  html_document:
-    df_print: paged
-  html_notebook: default
-  pdf_document: default
 ---
 
-```{r include=FALSE}
+
+```{r}
 library(ggplot2)
 library(GGally)
 library(ggpmisc)
 library(dplyr)
 library(knitr)
 library(MASS)
->>>>>>> Vic-NoteBook2
+
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
@@ -115,7 +106,7 @@ In this paper we will be focusing around the impact of a worker's sex on their h
 ```{r}
 p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
 p + geom_boxplot() + ggtitle("Wage vs Sex")
-=======
+
 * *EDUCATION* : Number of years of education
 * *SOUTH* : Indictor variable if a person is from the south or not
     0. Not From South
@@ -440,5 +431,3 @@ ggplot(occ_table, aes(x=OCC_SEC,y=MeanWage)) +
 ```
 
 
-well here we are
->>>>>>> Vic-NoteBook2
