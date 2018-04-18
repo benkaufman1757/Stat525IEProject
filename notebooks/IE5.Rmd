@@ -1,0 +1,144 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r include=FALSE}
+library(ggplot2)
+library(GGally)
+library(car)
+# create dataframe
+wages <- read.csv(file = "cpswages.dat.txt", header = FALSE, sep=" ")
+names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
+wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
+
+# Set up factors
+wages$SOUTH <- factor(wages$SOUTH, levels=c(0,1),
+                    labels=c('North','South'))
+
+wages$SEX <- factor(wages$SEX, levels=c(0,1),
+                    labels=c('Male','Female'))
+
+wages$UNION <- factor(wages$UNION, levels=c(0,1),
+                    labels=c('Non-Unionized','Unionized'))
+
+wages$RACE <- factor(wages$RACE, levels=c(1,2,3),
+                    labels=c('Other','Hispanic', 'White'))
+
+wages$OCCUPATION <- factor(wages$OCCUPATION, levels=c(1,2,3,4,5,6),
+                    labels=c('Management','Sales','Clerical','Service','Professional','Other'))
+
+wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
+                       labels=c('Other','Manufacturing','Construction'))
+
+wages$MARR <- factor(wages$MARR, levels=c(0,1),
+                       labels=c('Unmarried','Married'))
+
+wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
+wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
+
+wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
+wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
+wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
+wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
+wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
+
+wages$WHITE <- 1*(wages$RACE == 'White')
+wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
+
+wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
+
+women <- subset(wages,SEX=='Female')
+men <- subset(wages,SEX=='Male')
+```
+
+## Introduction
+In this paper we will be focusing around the impact of a worker's sex on their hourly wage. The dataset we are using for this project is a random sample of 534 people from the 1985 Current Population Survey (CPS) which contains cross-sectional data of potential determinants of wages. In this assignment we will use several statistical techniques we have acquired from our study combined with some real-world knowledge to try and answer some questions one may have about this dataset.
+
+## Data Definitions
+
+* *EDUCATION* : Number of years of education
+* *SOUTH* : Indictor variable if a person is from the south or not
+    0. Not From South
+    1. From South
+* *SEX* : Catagorical variable indiciting whether one was male or female
+    0. Male
+    1. Female
+* *EXPERIENCE* : Number of years of work experience
+* *UNION* : 
+    0. Not in a Union
+    1. In a Union
+* *WAGE* : Wage earned per hour
+* *AGE* : Age in year
+* *RACE* : Catagorical variable indiciting ones race
+    1. Other
+    2. Hispanic
+    3. White
+* *OCCUPATION* : Catagorical variable indiciting ones occupation
+    1. Management
+    2. Sales
+    3. Clerical
+    4. Service
+    5. Professional 
+    6. Other
+* *SECTOR* : Catagorical variable indiciting ones sector
+    0. Other
+    1. Manufacturing
+    2. Construction
+* *MARRIED* : Catagorical variable indiciting ones marriage status
+    0. Unmarried
+    1. Married
+
+#Initial Model
+We first would like to explorer whether the wage gap does exist. In order to do so we first graphed the plot Education vs Wage and differentiated each point by the sex. We then created linear lines for Male and Female to see if there was anything interesting. 
+```{r}
+#We guess that education and sex will have to do something with wage
+
+p = ggplot(aes(x=EDUCATION, y=WAGE),data=wages)
+p + geom_point(data=wages, aes(color=SEX)) #See that a lot of data is clumped together
+
+p + geom_point(data=wages, aes(color=SEX)) + geom_smooth(method='lm', aes(color=SEX), data=wages)
+#see that the slopes are very close to identical but have different intercept so there is wage gap
+```
+We are able to see that the slopes for male and female and quite similar but the intercept for them are different with male having a higher intercept than female. This tells us that male on average make more than females which tells us that there is indeed a wage gap. 
+```{r}
+mod1 = lm(WAGE~EDUCATION + SEX, data=wages)
+summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
+```
+Creating a linear model of Education + Sex vs Wage did not having anything interesting as there is a low $R^2$ value. We then started to do added variable plots in order to find if anything else effected wages besides sex. 
+#Added variable plot1
+We create added variable plots for Experience and Age in order to see whether these two variables add anything new to our old model
+```{r}
+wages$resid1 = resid(mod1)
+
+p2 = ggplot(aes(y=resid1), data=wages)
+p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) #has good linear model except for that one outlier
+
+p2 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX, data=wages)))) #also a good linear model except for one outlier
+
+mod2 = lm(WAGE~EDUCATION + SEX + EXPERIENCE, data=wages)
+```
+
+We can see that both added variable plots have good linear models and both of them have a extreme outlier. For now we leave that outlier a it does not affect the results of the linear model that much. We create model2 by adding Experience to our existing model
+
+#Checking our new model results and comparing it with our old model
+```{r}
+summary(mod2); summary(mod1)
+```
+As we can see from the result the $R^2$ value increased from model1 to model2 and the Residual Standard Error(RSE) decreased slightly. Still the new model explains nothing interesting about the effects on wage.
+
+#Added variable plot2
+We create a new added variable plot and see if age helps explain out dataset a bit better
+```{r}
+wages$resid2 = resid(mod2)
+p3 = ggplot(aes(y=resid2), data=wages)
+p3 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX + EXPERIENCE, data=wages))))
+```
+We see that all of the data is all clumped up together with two extreme outliers. We will see if transforming the data would help fix this issue. 
+
+#Power Transform
+```{r}
+powerTransform(cbind())
+```
+
+
