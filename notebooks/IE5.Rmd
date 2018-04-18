@@ -8,7 +8,7 @@ library(ggplot2)
 library(GGally)
 library(car)
 # create dataframe
-wages <- read.csv(file = "cpswages.dat.txt", header = FALSE, sep=" ")
+wages <- read.csv(file = "~/GitHub/Stat525IEProject/data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
 wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
 
@@ -52,10 +52,10 @@ women <- subset(wages,SEX=='Female')
 men <- subset(wages,SEX=='Male')
 ```
 
-## Introduction
+#Introduction
 In this paper we will be focusing around the impact of a worker's sex on their hourly wage. The dataset we are using for this project is a random sample of 534 people from the 1985 Current Population Survey (CPS) which contains cross-sectional data of potential determinants of wages. In this assignment we will use several statistical techniques we have acquired from our study combined with some real-world knowledge to try and answer some questions one may have about this dataset.
 
-## Data Definitions
+#Data Definitions
 
 * *EDUCATION* : Number of years of education
 * *SOUTH* : Indictor variable if a person is from the south or not
@@ -89,7 +89,14 @@ In this paper we will be focusing around the impact of a worker's sex on their h
     0. Unmarried
     1. Married
 
-#Initial Model
+#Background information on the wage gap
+Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the more higher your level of education, the more money you will make. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that the wage gap is still present.
+
+![](images/wages_by_edu_over_lifespan.png)
+
+In this study we will not be looking numerically at the data shown above, instead we will use it qualitatively for some intuition and partial justification for adding education into our multiple linear regression model. Before just wildly throwing a term into our model we can look at the marginal plot of wage versus number of years of education.
+
+#Creating our first model
 We first would like to explorer whether the wage gap does exist. In order to do so we first graphed the plot Education vs Wage and differentiated each point by the sex. We then created linear lines for Male and Female to see if there was anything interesting. 
 ```{r}
 #We guess that education and sex will have to do something with wage
@@ -136,6 +143,12 @@ p3 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX + EXPERIENCE, data=wages))))
 ```
 We see that all of the data is all clumped up together with two extreme outliers. We will see if transforming the data would help fix this issue. 
 
+#Checking for co-linearity
+Will define a new variable EDU_PLUS_EXP which is defined to be the number of years of education of a person plus the number of years of experience a person has.
+```{r}
+ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE") )
+```
+As you can see from the results ED_PLUS_EXP has a correlation of 1 with age. This shows us that age is not needed in our model as ED_PLUS_EXP with AGE would compete to try to explain WAGE which would create a inaccurate results and data.
 #Power Transform
 ```{r}
 powerTransform(cbind())
