@@ -150,6 +150,25 @@ ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE"
 ```
 As you can see from the results ED_PLUS_EXP has a correlation of 1 with age. This shows us that age is not needed in our model as ED_PLUS_EXP with AGE would compete to try to explain WAGE which would create a inaccurate results and data.
 
+#Checking our model using residual plot
+```{r}
+wages.fit1 = fitted(mod1)
+wages.resid1 = resid(mod1)
+
+wages.fit2 = fitted(mod2)
+wages.resid2 = resid(mod2)
+
+p4 = ggplot(aes(x=wages.fit1, y=wages.resid1), data=wages)
+p4 + geom_point()
+
+p5 = ggplot(aes(x=wages.fit2, y=wages.resid2), data=wages)
+p5 + geom_point()
+
+
+```
+
+We can see that since model 1 variance is non consistant then it shows that we do not have a good model. Doing the same thing to model 2 we can see a lot more constant variance but there still is a slight cone shape variance which shows that this is not the best model to use.
+
 #Power Transformation
 We then used a power transformation in order to see whether we are able to get better linear models
 ```{r}
@@ -173,22 +192,15 @@ summary(tranMod2.1);summary(tranMod2)
 ```
 We see that the $R^2$ value increased slightly once again and the RSE also decreased slightly. This shows that transforming our linear model was a correct choice. 
 
-#Adding different factors
-Our data set is mostly comprised of different factors which does not allow us to do added variable plots. We are going to create a looping statement which allows us to try all the different factors in order to see which ones are have an effect on our model
-```{r}
-col = c(2,5,7,8,9,10)
-
-for ( i in col) 
-{
-  tmp = lm(WAGE ~ EDUCATION + EXPERIENCE + SEX + wages[,i] , data=wages)
-  print(names(wages)[i])
-  print(summary(tmp)$r.squared)
-} 
-```
-As we can see the results from the loop shows that OCCUPATION has the highest $R^2$ value which allows us to assume that it should be added into our model. Using our knowledge of real life one can assume that certain occupations would make more money than other occupations which is why it is reasonable to add occupation to our model.
+#Checking Occupation with our Model
 
 ```{r}
-mod3 = lm(WAGE~EXPERIENCE + EDUCATION + SEX + OCCUPATION, data=wages)
+wages.resid2 = resid(tranMod2.1)
+wages.fit2 = fitted(tranMod2.1)
+
+p6 = ggplot(aes(x=wages.fit2, y=wages.resid2), data=wages)
+p6 + geom_point() + facet_wrap(~wages$OCCUPATION)
 ```
+Base on the facet wrap we can see a constant variance for profession and other. This shows that our model is a good fit for those two occupations while it is a bad model for other occupations. 
 #Conclusion
 Throughout the IE project we thought of many different reasons why a wage gap would exist through real life experiences. We throught it was because of women working less because of pregancy and taking care of children which is a reason for the wage gap. Unfortunately out 
