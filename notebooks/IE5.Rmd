@@ -1,6 +1,8 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 ```{r include=FALSE}
@@ -143,10 +145,11 @@ We see that all of the data is all clumped up together with two extreme outliers
 
 #Checking for co-linearity
 Will define a new variable EDU_PLUS_EXP which is defined by education plus experience. 
-```{r}
+```{r echo=FALSE}
 ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE") )
 ```
 As you can see from the results ED_PLUS_EXP has a correlation of 1 with age. This shows us that age is not needed in our model as ED_PLUS_EXP with AGE would compete to try to explain WAGE which would create a inaccurate results and data.
+
 #Power Transformation
 We then used a power transformation in order to see whether we are able to get better linear models
 ```{r}
@@ -173,13 +176,19 @@ We see that the $R^2$ value increased slightly once again and the RSE also decre
 #Adding different factors
 Our data set is mostly comprised of different factors which does not allow us to do added variable plots. We are going to create a looping statement which allows us to try all the different factors in order to see which ones are have an effect on our model
 ```{r}
-wages.factor = wages[,c("SOUTH","RACE","OCCUPATION","SECTOR","MARR")]
+col = c(2,5,7,8,9,10)
 
-for ( i in ncol(wages.factor)) 
+for ( i in col) 
 {
-  tmp = lm(WAGE ~ EDUCATION + EXPERIENCE + SEX + names(wages.factor)[i], data=wages)
-  summary(tmp)
+  tmp = lm(WAGE ~ EDUCATION + EXPERIENCE + SEX + wages[,i] , data=wages)
+  print(names(wages)[i])
+  print(summary(tmp)$r.squared)
 } 
 ```
+As we can see the results from the loop shows that OCCUPATION has the highest $R^2$ value which allows us to assume that it should be added into our model. Using our knowledge of real life one can assume that certain occupations would make more money than other occupations which is why it is reasonable to add occupation to our model.
 
-
+```{r}
+mod3 = lm(WAGE~EXPERIENCE + EDUCATION + SEX + OCCUPATION, data=wages)
+```
+#Conclusion
+Throughout the IE project we thought of many different reasons why a wage gap would exist through real life experiences. We throught it was because of women working less because of pregancy and taking care of children which is a reason for the wage gap. Unfortunately out 
