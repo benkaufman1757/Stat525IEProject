@@ -96,13 +96,13 @@ Something that comes to mind when thinking of the determinants of wage is a pers
 
 In this study we will not be looking numerically at the data shown above, instead we will use it qualitatively for some intuition and partial justification for adding education into our multiple linear regression model. Before just wildly throwing a term into our model we can look at the marginal plot of wage versus number of years of education.
 
-#Creating our first model
+#Mod1: Creating our first model
 We first would like to explorer whether the wage gap does exist. In order to do so we first graphed the plot Education vs Wage and differentiated each point by the sex. We then created linear lines for Male and Female to see if there was anything interesting. 
 ```{r}
 #We guess that education and sex will have to do something with wage
 
 p = ggplot(aes(x=EDUCATION, y=WAGE),data=wages)
-p + geom_point(data=wages, aes(color=SEX)) #See that a lot of data is clumped together
+#p + geom_point(data=wages, aes(color=SEX)) #See that a lot of data is clumped together
 
 p + geom_point(data=wages, aes(color=SEX)) + geom_smooth(method='lm', aes(color=SEX), data=wages)
 #see that the slopes are very close to identical but have different intercept so there is wage gap
@@ -113,20 +113,18 @@ mod1 = lm(WAGE~EDUCATION + SEX, data=wages)
 summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
 ```
 Creating a linear model of Education + Sex vs Wage did not having anything interesting as there is a low $R^2$ value. We then started to do added variable plots in order to find if anything else effected wages besides sex. 
-#Added variable plot1
+#Mod2: Added variable plot
 We create added variable plots for Experience and Age in order to see whether these two variables add anything new to our old model
 ```{r}
 wages$resid1 = resid(mod1)
 
 p2 = ggplot(aes(y=resid1), data=wages)
-p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) #has good linear model except for that one outlier
-
-p2 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX, data=wages)))) #also a good linear model except for one outlier
-
+p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) + ggtitle("Added Variable Plot for EXPERIENCE") + xlab('Residual of EXPERIENCE ~ EDUCATION + SEX') + ylab('Residual of Mod1')
+#has good linear model except for that one outlier
 mod2 = lm(WAGE~EDUCATION + SEX + EXPERIENCE, data=wages)
 ```
 
-We can see that both added variable plots have good linear models and both of them have a extreme outlier. For now we leave that outlier a it does not affect the results of the linear model that much. We create model2 by adding Experience to our existing model
+We can see that both added variable plots have good linear models and both of them have a extreme outlier. For now we leave that outlier a it does not affect the results of the linear model that much. We create model2 by adding Experience to our existing model. 
 
 #Checking our new model results and comparing it with our old model
 ```{r}
@@ -139,19 +137,49 @@ We create a new added variable plot and see if age helps explain out dataset a b
 ```{r}
 wages$resid2 = resid(mod2)
 p3 = ggplot(aes(y=resid2), data=wages)
-p3 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX + EXPERIENCE, data=wages))))
+p3 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX + EXPERIENCE, data=wages)))) + ggtitle('Added Variable Plot for AGE') + xlab('Residual of AGE~EDUCATION + SEX + EXPERIENCE') + ylab('Residual of Mod2')
 ```
-We see that all of the data is all clumped up together with two extreme outliers. We will see if transforming the data would help fix this issue. 
+We see that all of the data is all clumped up together with two extreme outliers. We will see if transforming the data would help fix this issue or if there is anything else that can tell us if we should be using age in our model. 
 
 #Checking for co-linearity
-Will define a new variable EDU_PLUS_EXP which is defined to be the number of years of education of a person plus the number of years of experience a person has.
+Will define a new variable EDU_PLUS_EXP which is defined by education plus experience. 
 ```{r}
 ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE") )
 ```
 As you can see from the results ED_PLUS_EXP has a correlation of 1 with age. This shows us that age is not needed in our model as ED_PLUS_EXP with AGE would compete to try to explain WAGE which would create a inaccurate results and data.
-#Power Transform
+#Power Transformation
+We then used a power transformation in order to see whether we are able to get better linear models
 ```{r}
-powerTransform(cbind())
+wages$EXPERIENCE = wages$EXPERIENCE + 1
+coef(powerTransform(wages[,c("EDUCATION","EXPERIENCE")]), round=TRUE)
+```
+The results above show that EXPERIENCE should be square rooted. 
+```{r}
+wages$tranEXPERIENCE = wages$EXPERIENCE^(1/2)
+tranMod2 = lm(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages)
+summary(tranMod2);summary(mod2)
+```
+We see that the $R^2$ value increases slightly and the RSE decreases slightly. This shows that the transformation of the models did not make that big of a difference. We then checked to see if the predictor needed to be transformed.
+```{r}
+coef(powerTransform(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages), round=TRUE)
+```
+We see that we should take the log of WAGE in order to get a more accurate linear model
+```{r}
+tranMod2.1 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX, data=wages)
+summary(tranMod2.1);summary(tranMod2)
+```
+We see that the $R^2$ value increased slightly once again and the RSE also decreased slightly. This shows that transforming our linear model was a correct choice. 
+
+#Adding different factors
+Our data set is mostly comprised of different factors which does not allow us to do added variable plots. We are going to create a looping statement which allows us to try all the different factors in order to see which ones are have an effect on our model
+```{r}
+wages.factor = wages[,c("SOUTH","RACE","OCCUPATION","SECTOR","MARR")]
+
+for ( i in ncol(wages.factor)) 
+{
+  tmp = lm(WAGE ~ EDUCATION + EXPERIENCE + SEX + names(wages.factor)[i], data=wages)
+  summary(tmp)
+} 
 ```
 
 
