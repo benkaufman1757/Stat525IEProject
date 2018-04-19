@@ -1,19 +1,16 @@
 ---
 title: "IE4"
 output:
+  html_notebook: default
   html_document:
     df_print: paged
-  html_notebook: default
+  '': default
   pdf_document: default
 ---
 
 ```{r include=FALSE}
 library(ggplot2)
 library(GGally)
-library(ggpmisc)
-library(dplyr)
-library(knitr)
-library(MASS)
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
@@ -98,26 +95,12 @@ In this paper we will be focusing around the impact of a worker's sex on their h
 
 
 ## Does a "Wage Gap" Exist between Men and Women?
-The first question we will attempt to answer is whether or not a wage gap exists between men and women. We can try to visualize the difference in male and female wages by using a box plot. From the figure below we can clearly see that the mean wage for men and women, denoted by the black line in each respective box, is unequal; on average men earn more than women.  
+The first question we will attempt to answer is whether or not a wage gap exists between men and women. We can try to visualize the difference in male and female wages by using a box plot. From the figure below we can clearly see that the median wage for men and women, denoted by the black line in each respective box, is unequal and therefore we can hypothesize that male make more than females. 
+
 ```{r echo=FALSE}
 p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
 p + geom_boxplot() + ggtitle("Boxplot of Wage vs Sex")
 ```
-
-A natural question to ask is, "Is this difference significant?" In order to answer this we must construct a statistical test. Since we have a relatively large sample, 245 women and 289 men, we will conduct a large sample hypothesis t-test with a 95% confidence interval.
-```{r echo=FALSE}
-cat(paste("Number of women: ", nrow(women), "\n","Number of men: ", nrow(men), sep = ""))
-```
-
-$$
-H_o : \mu_{male} = \mu_{female}\\
-H_a : \mu_{male}\geq\mu_{female}
-$$
-```{r echo=FALSE}
-t.test(men$WAGE, women$WAGE, alternative = "greater")
-```
-Based on the results from our t-test we must reject the null hypothesis and accept the alternative hypothesis. In other words, the difference in the average wages between men and women is statistically significant. Men make ~\$10/hr on average and women make ~\$7.87 in 1985 dollars, in 2018 dollars this would be \$23.12/hr and \$18.21/hr respectively. Now that we have established that a statistically significant wage gap exists this motivates us to investigate why a wage gap between men and women exists. 
-
 
 ## Education and Wage Gap
 
@@ -163,7 +146,7 @@ cat(paste("Residual Standard Error for M1: ", round(sigma(M1),digits = 4), "\n",
 
 ```
 
-As we can see the RSE in both models is almost exactly the same, off by about 0.001. Using this information in conjunction with the fact that the confidence interval of the coefficient on the interaction term is not unambiguously positive or negative we can conclude that the interaction term is not signifcant so it is advisable to use one regression line for both men and women when trying to describe wage as a function of number of years of education. We can also see this lack of significance from the very large p-value. In the context of our problem this allows us to conclude that under a linear regression model that only includes education and sex to model wage the gender gap does not decrease as the level of education increases. However, what we do find is that the gender gap still exists and that men and women are not paid equally, proportionally to their level of education alone. We see this from looking at the SEXFemale coefficient in M1. The value of this coefficient is -2.124 and it has a 95% confidence interval (CI) of (-2.9154 -1.3327). Since $\beta_{2,1}$ is negative and both of the bounds of its 95% CI are negative this leads us to believe that there is a gender gap. In other words, we can say that under this model while adjusting for education on average women receive a lower wage than men by about 1.3 to 3 dollars per hour. (Not much evidence between one or two lines)
+As we can see the RSE in both models is almost exactly the same, off by about 0.001. Using this information in conjunction with the fact that the confidence interval of the coefficient on the interaction term is not unambiguously positive or negative therefore we can conclude that the interaction term is not signifcant. It is decided to use the same slope and different intercept for both men and women when trying to describe wage as a function of number of years of education. We can also see this lack of significance from the very large p-value. In the context of our problem this allows us to conclude that under a linear regression model that only includes education and sex to model wage the gender gap does not decrease as the level of education increases. However, what we do find is that the gender gap still exists and that men and women are not paid equally, proportionally to their level of education alone. We see this from looking at the SEXFemale coefficient in M1. The value of this coefficient is -2.124 and it has a 95% confidence interval (CI) of (-2.9154 -1.3327). Since $\beta_{2,1}$ is negative and both of the bounds of its 95% CI are negative this leads us to believe that there is a gender gap. In other words, we can say that under this model while adjusting for education on average women receive a lower wage than men by about 1.3 to 3 dollars per hour.
 
 ```{r include=FALSE}
 coef(M1)
@@ -175,18 +158,10 @@ confint(M1)
 
 As it stands our model only uses sex and education as predictors. As we know from the real world, your wage might be related to the amount of experience you have had in a job. For example, more exclusive jobs normally pay more and the reason they may be exclusive is because they may require x years of experience. This allows us to hypothesize that your wage will depend upon the amount of experience you've had, more specifically, we would believe that your wage should increase with your level of experience. In order to justify adding this variable to our model we will create a separate model which attempts to model this new variable using the pre-existing regressors in our original model. We will then use this to construct an added variable plot for years of experience.
 
-$$
-\begin{align}
-M3: E(Wage|Education, Sex, Experience) &= \beta_{0,3} + \beta_{1,3} Education + \beta_{2,3} Sex + \beta_{3,3} Experience \\
-\end{align}
-$$
-
 ```{r echo=FALSE}
-M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
-```
+#Added variable plot of Experience added to the model
 
 
-```{r echo=FALSE}
 resid_M1 <- resid(M1)
 resid_M3 <- resid(M3)
 fitted_M1 <- fitted(M1)

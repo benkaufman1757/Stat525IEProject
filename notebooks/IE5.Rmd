@@ -1,0 +1,206 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r include=FALSE}
+library(ggplot2)
+library(GGally)
+library(car)
+# create dataframe
+wages <- read.csv(file = "~/GitHub/Stat525IEProject/data/cpswages.dat.txt", header = FALSE, sep=" ")
+names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
+wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
+
+# Set up factors
+wages$SOUTH <- factor(wages$SOUTH, levels=c(0,1),
+                    labels=c('North','South'))
+
+wages$SEX <- factor(wages$SEX, levels=c(0,1),
+                    labels=c('Male','Female'))
+
+wages$UNION <- factor(wages$UNION, levels=c(0,1),
+                    labels=c('Non-Unionized','Unionized'))
+
+wages$RACE <- factor(wages$RACE, levels=c(1,2,3),
+                    labels=c('Other','Hispanic', 'White'))
+
+wages$OCCUPATION <- factor(wages$OCCUPATION, levels=c(1,2,3,4,5,6),
+                    labels=c('Management','Sales','Clerical','Service','Professional','Other'))
+
+wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
+                       labels=c('Other','Manufacturing','Construction'))
+
+wages$MARR <- factor(wages$MARR, levels=c(0,1),
+                       labels=c('Unmarried','Married'))
+
+wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
+wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
+
+wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
+wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
+wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
+wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
+wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
+
+wages$WHITE <- 1*(wages$RACE == 'White')
+wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
+
+wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
+
+women <- subset(wages,SEX=='Female')
+men <- subset(wages,SEX=='Male')
+```
+
+#Introduction
+In this paper we will be focusing around the impact of a worker's sex on their hourly wage. The dataset we are using for this project is a random sample of 534 people from the 1985 Current Population Survey (CPS) which contains cross-sectional data of potential determinants of wages. In this assignment we will use several statistical techniques we have acquired from our study combined with some real-world knowledge to try and answer some questions one may have about this dataset.
+
+#Data Definitions
+
+* *EDUCATION* : Number of years of education
+* *SOUTH* : Indictor variable if a person is from the south or not
+    0. Not From South
+    1. From South
+* *SEX* : Catagorical variable indiciting whether one was male or female
+    0. Male
+    1. Female
+* *EXPERIENCE* : Number of years of work experience
+* *UNION* : 
+    0. Not in a Union
+    1. In a Union
+* *WAGE* : Wage earned per hour
+* *AGE* : Age in year
+* *RACE* : Catagorical variable indiciting ones race
+    1. Other
+    2. Hispanic
+    3. White
+* *OCCUPATION* : Catagorical variable indiciting ones occupation
+    1. Management
+    2. Sales
+    3. Clerical
+    4. Service
+    5. Professional 
+    6. Other
+* *SECTOR* : Catagorical variable indiciting ones sector
+    0. Other
+    1. Manufacturing
+    2. Construction
+* *MARRIED* : Catagorical variable indiciting ones marriage status
+    0. Unmarried
+    1. Married
+
+#Background information on the wage gap
+Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the more higher your level of education, the more money you will make. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that the wage gap is still present.
+
+![](images/wages_by_edu_over_lifespan.png)
+
+In this study we will not be looking numerically at the data shown above, instead we will use it qualitatively for some intuition and partial justification for adding education into our multiple linear regression model. Before just wildly throwing a term into our model we can look at the marginal plot of wage versus number of years of education.
+
+#Mod1: Creating our first model
+We first would like to explorer whether the wage gap does exist. In order to do so we first graphed the plot Education vs Wage and differentiated each point by the sex. We then created linear lines for Male and Female to see if there was anything interesting. 
+```{r}
+#We guess that education and sex will have to do something with wage
+
+p = ggplot(aes(x=EDUCATION, y=WAGE),data=wages)
+#p + geom_point(data=wages, aes(color=SEX)) #See that a lot of data is clumped together
+
+p + geom_point(data=wages, aes(color=SEX)) + geom_smooth(method='lm', aes(color=SEX), data=wages)
+#see that the slopes are very close to identical but have different intercept so there is wage gap
+```
+We are able to see that the slopes for male and female and quite similar but the intercept for them are different with male having a higher intercept than female. This tells us that male on average make more than females which tells us that there is indeed a wage gap. 
+```{r}
+mod1 = lm(WAGE~EDUCATION + SEX, data=wages)
+summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
+```
+Creating a linear model of Education + Sex vs Wage did not having anything interesting as there is a low $R^2$ value. We then started to do added variable plots in order to find if anything else effected wages besides sex. 
+#Mod2: Added variable plot
+We create added variable plots for Experience and Age in order to see whether these two variables add anything new to our old model
+```{r}
+wages$resid1 = resid(mod1)
+
+p2 = ggplot(aes(y=resid1), data=wages)
+p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) + ggtitle("Added Variable Plot for EXPERIENCE") + xlab('Residual of EXPERIENCE ~ EDUCATION + SEX') + ylab('Residual of Mod1')
+#has good linear model except for that one outlier
+mod2 = lm(WAGE~EDUCATION + SEX + EXPERIENCE, data=wages)
+```
+
+We can see that both added variable plots have good linear models and both of them have a extreme outlier. For now we leave that outlier a it does not affect the results of the linear model that much. We create model2 by adding Experience to our existing model. 
+
+#Checking our new model results and comparing it with our old model
+```{r}
+summary(mod2); summary(mod1)
+```
+As we can see from the result the $R^2$ value increased from model1 to model2 and the Residual Standard Error(RSE) decreased slightly. Still the new model explains nothing interesting about the effects on wage.
+
+#Added variable plot2
+We create a new added variable plot and see if age helps explain out dataset a bit better
+```{r}
+wages$resid2 = resid(mod2)
+p3 = ggplot(aes(y=resid2), data=wages)
+p3 + geom_point(aes(x=resid(lm(AGE~EDUCATION + SEX + EXPERIENCE, data=wages)))) + ggtitle('Added Variable Plot for AGE') + xlab('Residual of AGE~EDUCATION + SEX + EXPERIENCE') + ylab('Residual of Mod2')
+```
+We see that all of the data is all clumped up together with two extreme outliers. We will see if transforming the data would help fix this issue or if there is anything else that can tell us if we should be using age in our model. 
+
+#Checking for co-linearity
+Will define a new variable EDU_PLUS_EXP which is defined by education plus experience. 
+```{r echo=FALSE}
+ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE") )
+```
+As you can see from the results ED_PLUS_EXP has a correlation of 1 with age. This shows us that age is not needed in our model as ED_PLUS_EXP with AGE would compete to try to explain WAGE which would create a inaccurate results and data.
+
+#Checking our model using residual plot
+```{r}
+wages.fit1 = fitted(mod1)
+wages.resid1 = resid(mod1)
+
+wages.fit2 = fitted(mod2)
+wages.resid2 = resid(mod2)
+
+p4 = ggplot(aes(x=wages.fit1, y=wages.resid1), data=wages)
+p4 + geom_point()
+
+p5 = ggplot(aes(x=wages.fit2, y=wages.resid2), data=wages)
+p5 + geom_point()
+
+
+```
+
+We can see that since model 1 variance is non consistant then it shows that we do not have a good model. Doing the same thing to model 2 we can see a lot more constant variance but there still is a slight cone shape variance which shows that this is not the best model to use.
+
+#Power Transformation
+We then used a power transformation in order to see whether we are able to get better linear models
+```{r}
+wages$EXPERIENCE = wages$EXPERIENCE + 1
+coef(powerTransform(wages[,c("EDUCATION","EXPERIENCE")]), round=TRUE)
+```
+The results above show that EXPERIENCE should be square rooted. 
+```{r}
+wages$tranEXPERIENCE = wages$EXPERIENCE^(1/2)
+tranMod2 = lm(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages)
+summary(tranMod2);summary(mod2)
+```
+We see that the $R^2$ value increases slightly and the RSE decreases slightly. This shows that the transformation of the models did not make that big of a difference. We then checked to see if the predictor needed to be transformed.
+```{r}
+coef(powerTransform(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages), round=TRUE)
+```
+We see that we should take the log of WAGE in order to get a more accurate linear model
+```{r}
+tranMod2.1 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX, data=wages)
+summary(tranMod2.1);summary(tranMod2)
+```
+We see that the $R^2$ value increased slightly once again and the RSE also decreased slightly. This shows that transforming our linear model was a correct choice. 
+
+#Checking Occupation with our Model
+
+```{r}
+wages.resid2 = resid(tranMod2.1)
+wages.fit2 = fitted(tranMod2.1)
+
+p6 = ggplot(aes(x=wages.fit2, y=wages.resid2), data=wages)
+p6 + geom_point() + facet_wrap(~wages$OCCUPATION)
+```
+Base on the facet wrap we can see a constant variance for profession and other. This shows that our model is a good fit for those two occupations while it is a bad model for other occupations. 
+#Conclusion
+Throughout the IE project we thought of many different reasons why a wage gap would exist through real life experiences. We throught it was because of women working less because of pregancy and taking care of children which is a reason for the wage gap. Unfortunately out 
