@@ -192,7 +192,7 @@ summary(tranMod2.1);summary(tranMod2)
 ```
 We see that the $R^2$ value increased slightly once again and the RSE also decreased slightly. This shows that transforming our linear model was a correct choice. 
 
-#Checking Occupation with our Model
+#Adding Occupation into our Model
 
 ```{r}
 wages.resid2 = resid(tranMod2.1)
@@ -202,5 +202,16 @@ p6 = ggplot(aes(x=wages.fit2, y=wages.resid2), data=wages)
 p6 + geom_point() + facet_wrap(~wages$OCCUPATION)
 ```
 Base on the facet wrap we can see a constant variance for profession and other. This shows that our model is a good fit for those two occupations while it is a bad model for other occupations. 
+
+```{r}
+wages.occupation = subset(wages, OCCUPATION == "Professional" | OCCUPATION == "Other")
+tranMod2.2 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX + OCCUPATION, data=wages.occupation)
+summary(tranMod2.2);summary(tranMod2.1)
+```
+We can see that adding occupation with only Professional and Other to our linear model does make our model stronger. This might be because some occupations do not have enough male or female which skews our linear model
+
+#Adding union into our model
+We would like to see if adding union will have a affect on our model. Just like what we did with Occupation we are going to see if there is any data which will skew our model and remove them in hopes of creating a more accurate model
+
 #Conclusion
 Throughout the IE project we thought of many different reasons why a wage gap would exist through real life experiences. We throught it was because of women working less because of pregancy and taking care of children which is a reason for the wage gap. Unfortunately out 
