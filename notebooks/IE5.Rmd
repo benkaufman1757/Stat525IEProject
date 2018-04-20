@@ -36,18 +36,6 @@ wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
 wages$MARR <- factor(wages$MARR, levels=c(0,1),
                        labels=c('Unmarried','Married'))
 
-wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
-wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
-
-wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
-wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
-wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
-wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
-wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
-
-wages$WHITE <- 1*(wages$RACE == 'White')
-wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
-
 wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
 
 women <- subset(wages,SEX=='Female')
@@ -98,7 +86,15 @@ Something that comes to mind when thinking of the determinants of wage is a pers
 
 In this study we will not be looking numerically at the data shown above, instead we will use it qualitatively for some intuition and partial justification for adding education into our multiple linear regression model. Before just wildly throwing a term into our model we can look at the marginal plot of wage versus number of years of education.
 
-#Mod1: Creating our first model
+#GGpairs plot
+We are going to use the ggpairs function in order to see if there is anything interesting in our data set
+```{r echo=FALSE}
+ggpairs(wages)
+```
+The dataset we chose has many factors and only a couple of continuous variables. From the plot above we can see that Experience vs Age has a nice linear model and Wage vs Education also has a bit of a linear model. We are going explore more indepth into these models and using real life knowledge see if we are able to explain the reasoning for a wage gap between male and female.
+
+
+#Model 1: WAGE~EDUCATION
 We first would like to explorer whether the wage gap does exist. In order to do so we first graphed the plot Education vs Wage and differentiated each point by the sex. We then created linear lines for Male and Female to see if there was anything interesting. 
 ```{r}
 #We guess that education and sex will have to do something with wage
@@ -111,22 +107,43 @@ p + geom_point(data=wages, aes(color=SEX)) + geom_smooth(method='lm', aes(color=
 ```
 We are able to see that the slopes for male and female and quite similar but the intercept for them are different with male having a higher intercept than female. This tells us that male on average make more than females which tells us that there is indeed a wage gap. 
 ```{r}
+mod = lm(WAGE~EDUCATION, data=wages)
+
 mod1 = lm(WAGE~EDUCATION + SEX, data=wages)
+summary(mod)
 summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
 ```
-Creating a linear model of Education + Sex vs Wage did not having anything interesting as there is a low $R^2$ value. We then started to do added variable plots in order to find if anything else effected wages besides sex. 
-#Mod2: Added variable plot
+Comparing the a linear model with sex and without sex we can see that the linear model with education and sex had a slightly higher $R^2$ value and lower RSE. We added sex into the model as we know women and men have different levels of education as men are more likely to be in STEM fields which pay more compared to women. We chose to work with the linear model with sex and started to do added variable plots in order to find if anything else effected wages besides sex and education. 
+#Model 2: Experience ~ Age
+As we saw from the ggpairs plot in the beginning Experience and Age had a high correlation. This is to be expected as Age is directly corelated with Experience. We still plotted this graph in order to make sure this is correct
+```{r}
+p2 = ggplot(aes(x=AGE, y=EXPERIENCE), data=wages)
+p2 + geom_point(aes(color=SEX), data=wages) + geom_smooth(method="lm", aes(color=SEX), data=wages)
+
+mod2 = lm(EXPERIENCE~AGE, data=wages) 
+```
+As we see from the graph above male and female almost exactly the same line which allows us see that there is no sex descrimination when it comes to EXPERIENCE vs AGE. This also enforces our knowledge that EXPERIENCE is directly correlated to AGE. 
+
+
+#AVP 2: Added variable plot with Experience
 We create added variable plots for Experience and Age in order to see whether these two variables add anything new to our old model
 ```{r}
 wages$resid1 = resid(mod1)
 
 p2 = ggplot(aes(y=resid1), data=wages)
-p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) + ggtitle("Added Variable Plot for EXPERIENCE") + xlab('Residual of EXPERIENCE ~ EDUCATION + SEX') + ylab('Residual of Mod1')
+p2 + geom_point(aes(x=resid(lm(EXPERIENCE~EDUCATION + SEX, data=wages)))) + ggtitle("Added Variable Plot for EXPERIENCE") + xlab('Residual of EXPERIENCE ~ EDUCATION + SEX') + ylab('Residual of Mod1') + facet_wrap(~SEX)
 #has good linear model except for that one outlier
 mod2 = lm(WAGE~EDUCATION + SEX + EXPERIENCE, data=wages)
 ```
 
-We can see that both added variable plots have good linear models and both of them have a extreme outlier. For now we leave that outlier a it does not affect the results of the linear model that much. We create model2 by adding Experience to our existing model. 
+We can see that the added variable plots have good linear models for both male and female. We create model2 by adding Experience to our existing model. Using avPlots function we are able to see more indepth how EDUCATION effects our other regressors. 
+
+```{r}
+avPlots(mod2)
+```
+
+As we can see from the avPlots WAGE~EXPERIENCE and WAGE~EDUCATION both have nice linear lines which shows that adding EDUCATION into our plot is a good idea. 
+
 
 #Checking our new model results and comparing it with our old model
 ```{r}
