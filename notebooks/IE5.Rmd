@@ -88,10 +88,10 @@ In this study we will not be looking numerically at the data shown above, instea
 
 #GGpairs plot
 We are going to use the ggpairs function in order to see if there is anything interesting in our data set
-```{r echo=FALSE}
+```{r echo=FALSE }
 ggpairs(wages, columns = c("EDUCATION", "EXPERIENCE", "AGE", "SEX" ,"WAGE"), aes(colour=SEX))
 ```
-The dataset we chose has many factors and only a couple of continuous variables. From the plot above we can see that Experience vs Age has a nice linear model and Wage vs Education also has a bit of a linear model. Another interesting thing about this plot is that the distribution between men and women with education is about the same. We can also see that wage for men is a bit higher compared to women this might imply the existance of a wage gap. We are going explore more indepth into these models and using real life knowledge see if we are able to explain the reasoning for a wage gap between male and female.
+The dataset we chose has many factors and only a couple of continuous variables. From the plot above we can see that Experience vs Age has a nice linear model and Wage vs Education also has a bit of a linear model. Another interesting thing about this plot is that the distribution between men and women with education is about the same. We can also see that wage for men is a bit higher compared to women this might imply the existance of a wage gap. We are going explore more indepth into these models and using real life knowledge to see if we are able to explain the reasoning for a wage gap between male and female.
 
 
 #Model 1: WAGE~EDUCATION
@@ -110,8 +110,7 @@ We are able to see that the slopes for male and female and quite similar but the
 mod = lm(WAGE~EDUCATION, data=wages)
 
 mod1 = lm(WAGE~EDUCATION + SEX, data=wages)
-summary(mod)
-summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
+summary(mod);summary(mod1) #see that we have low r^2 value and nothing is interesting lets try doing added variable plots
 ```
 Comparing the a linear model with sex and without sex we can see that the linear model with education and sex had a slightly higher $R^2$ value and lower RSE. We added sex into the model as we know women and men have different levels of education as men are more likely to be in STEM fields which pay more compared to women. We chose to work with the linear model with sex and started to do added variable plots in order to find if anything else effected wages besides sex and education. 
 
@@ -146,7 +145,7 @@ We can see that the added variable plots have good linear fit. We create a new m
 avPlots(mod3)
 ```
 
-As we can see from the avPlots function WAGE~EXPERIENCE and WAGE~EDUCATION both have nice linear fits which shows that adding EDUCATION into our plot is a good idea. 
+As we can see from the avPlots function WAGE~EXPERIENCE and WAGE~EDUCATION both have nice linear fits which shows that adding EXPERIENCE into our plot is a good idea. 
 
 
 #Checking our new Model 3 results and comparing it with our old Model 1
@@ -227,7 +226,7 @@ wages.resid4 = resid(mod4)
 wages.fit4 = fitted(mod4)
 
 p6 = ggplot(aes(x=wages.fit4, y=wages.resid4), data=wages)
-p6 + geom_point() + facet_wrap(~wages$OCCUPATION)
+p6 + geom_point() + facet_wrap(wages$SEX~wages$OCCUPATION) + geom_smooth(method="lm",aes(color=SEX), data=wages)
 ```
 
 
