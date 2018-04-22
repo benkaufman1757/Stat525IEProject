@@ -1,4 +1,4 @@
----
+ ---
 title: "R Notebook"
 output:
   html_document:
@@ -10,7 +10,7 @@ library(ggplot2)
 library(GGally)
 library(car)
 # create dataframe
-wages <- read.csv(file = "~/GitHub/Stat525IEProject/data/cpswages.dat.txt", header = FALSE, sep=" ")
+wages <- read.csv(file = "~/Documents/GitHub/Stat525IEProject/data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
 wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
 
@@ -200,7 +200,7 @@ The results above show that EXPERIENCE should be square rooted.
 ```{r}
 wages$tranEXPERIENCE = wages$EXPERIENCE^(1/2)
 tranMod3 = lm(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages)
-summary(tranMod2);summary(mod2)
+summary(tranMod3);summary(mod3)
 ```
 We see that the $R^2$ value increases slightly and the RSE decreases slightly. This shows that the transformation of the models did not make that big of a difference. We then checked to see if the predictor needed to be transformed.
 ```{r}
@@ -209,7 +209,7 @@ coef(powerTransform(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages), round=TR
 We see that we should take the log of WAGE in order to get a more accurate linear model
 ```{r}
 tranMod3.1 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX, data=wages)
-summary(tranMod2.1);summary(tranMod2)
+summary(tranMod3.1);summary(tranMod3)
 ```
 We see that the $R^2$ value increased slightly once again and the RSE also decreased slightly. This shows that transforming our linear model was a correct choice. 
 
