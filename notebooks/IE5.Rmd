@@ -227,7 +227,28 @@ wages.fit4 = fitted(mod4)
 
 p6 = ggplot(aes(x=wages.fit4, y=wages.resid4), data=wages)
 p6 + geom_point() + facet_wrap(wages$SEX~wages$OCCUPATION) + geom_smooth(method="lm",aes(color=SEX), data=wages)
+#all this shows is that this model is a good fit for occupation for male and female
+#with this model though how does one check the wage gap. Maybe just check the summary and see that sex female make less
+#Also with the occupation model you can compare if male and female make more or less in certain occupations
 ```
+
+#Adding Union and Marriage to see if the models still fit well with occupation
+```{r}
+mod5 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX + UNION + OCCUPATION, data=wages)
+summary(mod5)
+#So adding Union does increase the $R^2$ value so that means we should add it to our model
+
+mod6 = lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX + UNION + OCCUPATION + MARR, data=wages)
+summary(mod6);summary(mod5)
+#This shows that mod6 R^2 value and variance did not really change so Marriage does not have a influence in this model. 
+```
+
+#Checking Model 5 and seeing the wage gap in different occupations
+```{r}
+#Do a principle componet and bring down the dimensions. 
+prcomp(mod5)
+```
+
 
 
 #Conclusion
