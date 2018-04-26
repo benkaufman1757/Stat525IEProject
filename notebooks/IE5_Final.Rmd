@@ -91,10 +91,8 @@ In this paper we will be focusing around the impact of a worker's sex on their h
     1. Married
 
 
-
-
 # Background Information on the Wage Gap
-Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the higher your level of education, the higher your hourly wage should be. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that on average, controlling for education and sex, men make more than women on average.
+Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the higher your level of education is, the higher your hourly wage should be. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that on average, controlling for education and sex, men make more than women on average.
 
 ![picture \label{Weekly Earnings by Level of Education and Sex over Lifespan}](images/wages_by_edu_over_lifespan.png)
 
@@ -122,8 +120,8 @@ M1<-lm(WAGE~EDUCATION+SEX, data=wages)
 p <- ggplot(aes(x=EDUCATION, y=WAGE),data=wages)
 p + geom_jitter(data=wages,aes(color=SEX)) + 
   geom_abline ( intercept = coef(M1)[1], slope = coef(M1)[2] ,color="black") +
-  scale_color_manual(values=c("blue","pink")) +
   ggtitle("Marginal Plot of Wage vs Education")
+#  scale_color_manual(values=c("blue","pink"))  if we want to change aes color
 
 summary(M1)
 ```
@@ -152,7 +150,7 @@ In Figure 4 we can see the the fitted lines between men and women seem to have a
 
 # Added Variable Plot: M1 and Experience
 
-As it stands our model only uses sex and education as predictors. As we know from the real world, your wage might be related to the amount of experience you have had in a job. For example, more exclusive jobs normally pay more and the reason they may be exclusive is because they may require x years of experience. This allows us to hypothesize that your wage will depend upon the amount of experience you've had, more specifically, we would believe that your wage should increase with your level of experience. In order to justify adding this variable to our model we will create an added variable plot.
+As it stands our model only uses sex and education as predictors. As we know from the real world, your wage might be related to the amount of experience you have had in a job. For example, more exclusive jobs normally pay more and the reason they may be exclusive is because they may require x years of experience. This allows us to hypothesize that your wage will depend upon the amount of experience you've had, more specifically, we would believe that your wage should increase with your experience. In order to justify adding this variable to our model we will create an added variable plot.
 
 ```{r echo=FALSE}
 wages$resid_M1 = resid(M1)
@@ -214,7 +212,7 @@ As we can see from the added variable plot adding *Age* to our model is not very
 
 # Collinearity 
 
-From Figure 2 the only variables that seemed to be particularly collinear were *Age* and *Experience*. The previous added variable plot suggests there is collinearity between the variables *Education*, *Experience*, *Sex*, and *Age*. To nail down this relationship we define a new variable *ED_PLUS_EX* which is the number of years of education plus the number of years of experience for each person in our dataset. If we look at the marginal plot of *Age* vs. *ED_PLUS_EX* and fit a model we see that these variables are nearly perfectly collinear apart from one outlier. Intersetingly, the outlier seems to be a person who is 18 years old and has already finished four years of college.
+From Figure 2 the only variables that seemed to be particularly collinear were *Age* and *Experience*. The previous added variable plot suggests there is collinearity between the variables *Education*, *Experience*, *Sex*, and *Age*. We created a model with Age instead of Education and Experience and we see that the $R^2$ is a lot lower compared to Model 3. To nail down this relationship we define a new variable *ED_PLUS_EX* which is the number of years of education plus the number of years of experience for each person in our dataset. If we look at the marginal plot of *Age* vs. *ED_PLUS_EX* and fit a model we see that these variables are nearly perfectly collinear apart from one outlier. Intersetingly, the outlier seems to be a person who is 18 years old and has already finished four years of college.
 
 ```{r}
 collin_mod <- lm(AGE ~ ED_PLUS_EX, wages)
@@ -223,7 +221,7 @@ p + geom_point() +
   geom_abline ( intercept = coef(collin_mod)[1], slope = coef(collin_mod)[2] ,color="black")
 ```
 
-If we look at the fitted model we essentially see that $Age=6+1*(Education+Experience)$ which tells us something we should already know in the US. In the US most people begin their schooling, enter first grade, at around age 6. What we find is that for the rest of people's lives in our dataset people are either in school or working which makes sense because most people retire at 65 and the oldest person is 64 years old. To conclude our discussion of *Age* we have decided to not use it in our model because it would interfere with our existing variables in our model. However, we will note that since we have made this choice our estimate of the wage gap between genders may be underestimated because the amount of experience you have may be influenced by your gender; in this case women may have less experience than men because they may have to take time off from work to raise children. Since this is a subtle point and there is no data to support time off between genders in this case further discussion will be in the caveats section.
+If we look at the fitted model we essentially see that $Age=6+1*(Education+Experience)$ which tells us something we should already know in the US. In the US most people begin going to school and enter first grade, at around age 6. What we find is that people are either in school or working which makes sense because most people retire at 65 and the oldest person is 64 years old. To conclude our discussion of *Age* we have decided to not use it in our model because it would interfere with our existing variables in our model. However, we will note that since we have made this choice our estimate of the wage gap between genders may be underestimated because the amount of experience you have may be influenced by your gender; in this case women may have less experience than men because they may have to take time off from work to raise children. Since this is a subtle point and there is no data to support time off between genders in this case further discussion will be in the caveats section.
 
 
 # Power Transformations
@@ -281,13 +279,25 @@ This shows that SEX has a interaction with OCCUPATION as model 5 $R^2$ increased
 p = ggplot(aes(x=ED_PLUS_EX, y=WAGE), data=wages)
 p + geom_point(aes(color=SEX),data=wages) + facet_wrap(~OCCUPATION) + geom_smooth(method='lm',aes(color=SEX))
 ```
-As we can see from above the wage gap is not clear in each occupation. In some occupations male makes more and female makes more and vice versa. Also some occupations there are a lot more females than there are males which might skew the results. We also might want to check if our model 
+As we can see from above the wage gap is not clear in each occupation. In some occupations male makes than female and in other occupations females make more than males. Also in some occupations there are a lot more females than there are males which might skew the result. We also might want to check if our model has any outliers which my skew some of these graphs
+
+```{r}
+tail(sort(hatvalues(mod5)))
+wages1 = wages[-351]
+
+p = ggplot(aes(x=ED_PLUS_EX, y=WAGE), data=wages1)
+p + geom_point(aes(color=SEX),data=wages) + facet_wrap(~OCCUPATION) + geom_smooth(method='lm',aes(color=SEX))
+
+wages[351,]
+```
+
+
 
 # Caveats and Final Notes
-Some things to note about this data set is how the data did not really have a corelation with anything. Most of our models had low $R^2$ values with high RSE and had inconsistant variance. When looking at our data set we noticed that some occupations did not have enough male or female or that some races were almost non existant in some occupations. We conclude that if we had more data and information then we might have been able to create better models
+Some things to note about this data set is how the data did not really have a corelation with anything. Most of our models had low $R^2$ values with high RSE and had inconsistant variance. There is not enough data in some occupation and race to get accurate results. We conclude that if we had more data and information then we might have been able to create a better models
 
 #Conclusion
-The wage gap between male and females is constantly seen throughout the news and different articles. Many people are constantly trying to find different reasons for the wage gap and try to find a solution in order to stop this. Throughout this project we created different models in order if there was a model without a wage gap in order to see if we were able to explain the wage gap. In the end we were unable to find anything substantial as all our models consistantly had low $R^2$ values with high RSE. Running many different variations of our models the highest $R^2$ we were able to get was .62 but doing so we created very complicated model which we ourselves were unable to understand and explain. We conclude that there is a wage gap and we are still unable to explain the reasoning for it. 
+The wage gap between males and females is constantly seen throughout the news and different articles. Many people are constantly trying to find different reasons for the wage gap and try to find a solution in order to stop this. Throughout this project we created different models to see if we were able to explain the wage gap. In the end we were unable to find anything substantial as all our models consistantly had low $R^2$ values with high RSE. Running many different variations of our models the highest $R^2$ we were able to get was .62 but doing so we created very complicated model which we ourselves were unable to understand and explain. We conclude that there is a wage gap and we are still unable to explain the reasoning for it. 
 
 
 
