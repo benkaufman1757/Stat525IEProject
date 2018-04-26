@@ -14,12 +14,6 @@ author:
 ```{r include=FALSE}
 library(ggplot2)
 library(GGally)
-library(ggpmisc)
-library(dplyr)
-library(knitr)
-library(MASS)
-library(gridExtra)
-library(splines)
 library(car)
 # create dataframe
 wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
@@ -276,7 +270,24 @@ p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
 
 Notice that the coefficients on the interaction terms are the differences in the gaps with respect to the gap in occupation other. Notice that the only other bigger gap is in Sales, this is denoted by negative sign on the SexFemale:OccupationSales coefficient
 
+```{r}
+mod5 = lm(log(WAGE)~EDUCATION + SEX*OCCUPATION + EXPERIENCE, data=wages)
+mod5.1 = lm(log(WAGE)~EDUCATION + SEX + OCCUPATION + EXPERIENCE, data=wages)
+summary(mod5);summary(mod5.1)
+```
+This shows that SEX has a interaction with OCCUPATION as model 5 $R^2$ increased slighty and RSE decreased slightly compared to model 5.1 which did not have SEX and OCCUPATION as a interaction. 
+
+```{r}
+p = ggplot(aes(x=ED_PLUS_EX, y=WAGE), data=wages)
+p + geom_point(aes(color=SEX),data=wages) + facet_wrap(~OCCUPATION) + geom_smooth(method='lm',aes(color=SEX))
+```
+As we can see from above the wage gap is not clear in each occupation. In some occupations male makes more and female makes more and vice versa. Also some occupations there are a lot more females than there are males which might skew the results. We also might want to check if our model 
+
 # Caveats and Final Notes
+Some things to note about this data set is how the data did not really have a corelation with anything. Most of our models had low $R^2$ values with high RSE and had inconsistant variance. When looking at our data set we noticed that some occupations did not have enough male or female or that some races were almost non existant in some occupations. We conclude that if we had more data and information then we might have been able to create better models
+
+#Conclusion
+The wage gap between male and females is constantly seen throughout the news and different articles. Many people are constantly trying to find different reasons for the wage gap and try to find a solution in order to stop this. Throughout this project we created different models in order if there was a model without a wage gap in order to see if we were able to explain the wage gap. In the end we were unable to find anything substantial as all our models consistantly had low $R^2$ values with high RSE. Running many different variations of our models the highest $R^2$ we were able to get was .62 but doing so we created very complicated model which we ourselves were unable to understand and explain. We conclude that there is a wage gap and we are still unable to explain the reasoning for it. 
 
 
 
