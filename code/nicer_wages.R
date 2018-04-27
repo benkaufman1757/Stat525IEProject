@@ -3,6 +3,9 @@ library(GGally)
 library(car)
 library(ggpmisc)
 library(MASS)
+library(dplyr)
+library(gvlma)
+library ( splines )
 projpath <- "~/Documents/Academics/Stat525/Project/"
 setwd(projpath)
 
@@ -11,6 +14,7 @@ wages <- read.csv(file = "data/cpswages.dat.txt", header = FALSE, sep=" ")
 names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
 wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
 head(wages)
+#wages <- wages[wages$WAGE<30,] # remove outlier
 
 # Set up factors
 wages$SOUTH <- factor(wages$SOUTH, levels=c(0,1),
@@ -33,18 +37,6 @@ wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
 
 wages$MARR <- factor(wages$MARR, levels=c(0,1),
                      labels=c('Unmarried','Married'))
-
-wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
-wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
-
-wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
-wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
-wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
-wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
-wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
-
-wages$WHITE <- 1*(wages$RACE == 'White')
-wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
 
 women <- subset(wages,SEX=='Female')
 men <- subset(wages,SEX=='Male')
@@ -104,7 +96,7 @@ p_added_v_edu_exp <- ggplot( avp_ed_ex, aes ( x = resid_exp_edu, y = resid_wg_ex
 p_added_v_edu_exp + geom_point() +
   geom_smooth(data=wages, method='lm',formula=y~x,color="pink")
 
-ggpairs(wages, columns = c("EDUCATION", "WAGE"), aes(colour=SEX))
+ggpairs(wages, columns = c("EDUCATION", "EXPERIENCE", "AGE", "SEX" ,"WAGE"), aes(colour=SEX))
 
 ggpairs(wages,columns = c("EDUCATION", "WAGE"), lower = list(continuous=wrap("points", position="jitter")),aes(colour=SEX))
 
@@ -133,9 +125,10 @@ coef(temp)
 coef(M1)
 M1 <- lm( WAGE ~ EDUCATION + SEX, data = wages)
 M2 <- lm( WAGE ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
-M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)   # ERRORS NOT REALLY NORMALLY DISTRIBUTED
 M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
-M5 <- lm( WAGE ~ EXPERIENCE + SEX, data = wages)
+M5 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+M6 <- lm( log(WAGE) ~ EDUCATION + SEX*OCCUPATION + EXPERIENCE, data = wages)
 
 p_ed_wg <- ggplot( wages, aes ( x = EDUCATION, y = WAGE) ) 
 p_ed_wg + geom_jitter(aes(color=SEX)) + 
@@ -189,7 +182,15 @@ summary(temp)$r.squared
 library(dplyr)
 set.seed(1)
 wages %>% 
-  group_by(OCCUPATION) %>%
+  group_by(OCCUPATION,UNION) %>%
+  summarise(no_rows = length(OCCUPATION))
+
+wages %>% 
+  group_by(OCCUPATION,SEX) %>%
+  summarise(no_rows = length(OCCUPATION))
+
+wages %>% 
+  group_by(RACE,OCCUPATION) %>%
   summarise(no_rows = length(OCCUPATION))
 
 professional <- subset(wages, OCCUPATION=="Professional")
@@ -208,7 +209,7 @@ confint(M4)
 
 ggpairs(wages,columns = c("EDUCATION", "WAGE"), 
         lower = list(continuous=wrap("points", position="jitter"), 
-        diag = list(discrete = wrap("barDiag"))), 
+                     diag = list(discrete = wrap("barDiag"))), 
         aes(colour=SEX)) + 
   ggtitle("Marginal Plot of Wage vs Education")
 ggpairs(wages,columns = c("EDUCATION", "WAGE"), 
@@ -224,7 +225,7 @@ p_ed_wg + geom_jitter(aes(color=SEX)) +
   scale_color_manual(name = 'SEX', values = c("blue", "pink")) +
   stat_poly_eq(data=women,parse=T, aes(label = ..eq.label..),eq.with.lhs = "hat(y)[F]~`=`~", formula=y~x) + 
   stat_poly_eq(data=men,parse=T, aes(label = ..eq.label..),eq.with.lhs = "hat(y)[M]~`=`~", formula=y~x,label.y.npc = 0.85)
-        
+
 
 m1 <- lm( WAGE ~ EDUCATION, data = men)
 m2 <- lm( WAGE ~ EDUCATION, data = women)
@@ -307,13 +308,15 @@ temp$coefficients[4,4]
 sex_occ_mincer <- lm( log(WAGE) ~ EDUCATION + EXPERIENCE + EXP2 + SEX + OCCUPATION , data = wages)
 summary(sex_occ_mincer)
 
+
+
 ## EXPERIENCE AVP FOR log(WAGE) w/ M1
 
 Ml1 <- lm( log(WAGE) ~ EDUCATION + SEX, data = wages)
 Ml2 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
-resid_wg_edu <- resid(Ml1)
+resid_wg_edu <- resid(M1)
 resid_exp_edu <- resid(M3)
-fitted_wg_edu <- fitted(Ml1)
+fitted_wg_edu <- fitted(M1)
 
 avp_ed_ex <- data.frame(resid_wg_edu, resid_exp_edu, fitted_wg_edu)
 ex_avp_mod <- lm(resid_wg_edu ~ resid_exp_edu, data = avp_ed_ex)
@@ -355,7 +358,7 @@ wages %>%
 
 
 ##################### ADDING OCCUPATION
-wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = 6))
+wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = "Management"))
 levels(wages$OCCUPATION)
 
 relevel(wages$OCCUPATION, ref = 6)
@@ -393,8 +396,417 @@ inv_fitt_value_M1 + geom_point()
 # geometric mean
 gmY <- exp(mean(log(wages$WAGE)))
 boxcox(M4)
+lambda <- 1/10
+Y <- wages$WAGE
+transformed <- gmY^(1-lambda)*((Y^lambda) -1) / lambda
+hist(transformed)
+hist(Y)
+wages$TRANSFORMED <- transformed
+
+summary(lm(TRANSFORMED~EDUCATION + SEX,wages))
+
+summary(lm(log(WAGE)~EDUCATION + SEX,wages))
+
+summary(powerTransform(M4))
+
+
+##### AVP FOR EXP^2
+
+temp1 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+temp2 <- lm( EXP2 ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+
+resid1 <- resid(temp1)
+resid2 <- resid(temp2)
+
+tempdf <- data.frame(resid1, resid2)
+p <- ggplot( tempdf, aes ( x = resid2, y = resid1) ) 
+p + geom_point()
+
+tempmod <- lm(resid1 ~ resid2, data=tempdf)
+summary(tempmod)
+
+tmp <- powerTransform ( cbind ( EDUCATION ) ~ 1, data = wages )
+summary(tmp)
+
+temp3 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE + EXP2 + OCCUPATION, data = wages)
+summary(temp3)
+avPlots(temp3)
+residualPlot(temp3)
+residualPlots(temp3)
+
+temp4 <- lm( log(WAGE) ~ EDUCATION*SEX , data = wages)
+summary(temp4)
+
+residualPlot()
+
+####### Oaxaca Decomposition
+male_ef <- lm(WAGE ~ EDUCATION, data=men)
+female_ef <- lm(WAGE ~ EDUCATION, data=women)
+
+coef(male_ef)
+coef(female_ef)
+mean(men$EDUCATION)
+mean(women$EDUCATION)
+# This is the same as M1 effectively
+
+
+resid_M4 <- resid(M4)
+fitted_M4 <- fitted(M4)
+
+df_M4 <- data.frame(resid_M4, fitted_M4)
+
+f_vs_rs_M4 <- ggplot( df_M4, aes ( x = fitted_M4, y = resid_M4) ) 
+f_vs_rs_M4 + geom_point() + #aes(color=wages$RACE)
+  #facet_wrap(wages$UNION~wages$OCCUPATION) + 
+  ggtitle("Residuals vs Fitted Values for M4")
+xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M4)")))
 
 
 
 
 
+resid_M5 <- resid(M5)
+fitted_M5 <- fitted(M5)
+
+df_M5 <- data.frame(resid_M5, fitted_M5)
+
+f_vs_rs_M5 <- ggplot( df_M5, aes ( x = fitted_M5, y = resid_M5) ) 
+f_vs_rs_M5 + geom_point() + #aes(color=wages$RACE)
+  facet_wrap(~wages$OCCUPATION) + 
+  ggtitle("Residuals vs Fitted Values for M5") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M5)")))
+
+summary(M6)
+
+resid_M6 <- resid(M6)
+fitted_M6 <- fitted(M6)
+
+df_M6 <- data.frame(resid_M6, fitted_M6)
+
+f_vs_rs_M6 <- ggplot( df_M6, aes ( x = fitted_M6, y = resid_M6) ) 
+f_vs_rs_M6 + geom_point() +
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M6)")))
+
+
+temp <- lm( log(WAGE) ~ EDUCATION + SEX*OCCUPATION*UNION*RACE + EXPERIENCE, data = wages)
+
+qplot(resid(M1))
+qplot(resid(M2))
+qplot(resid(M3))
+qplot(resid(M4))
+qplot(resid(M5))
+qplot(resid(M6))
+
+x <- seq(20)
+y <- seq(20)^2
+tempdf <- data.frame(x, y)
+
+p <- ggplot( tempdf, aes ( x = x, y = y) ) 
+p + geom_point()
+
+mod <- lm(y~x,tempdf)
+f <- fitted(mod)
+r <- resid(mod)
+p <- ggplot( tempdf, aes ( x = x, y = r) ) 
+p + geom_point()
+
+
+p <- ggplot(wages , aes ( x = EDUCATION, y = resid(M1)) )
+p + geom_jitter(aes(color=SEX))
+
+p <- ggplot( tempdf, aes ( x = f, y = r) ) 
+p + geom_point()
+
+summary(M5)
+fM5<-fitted(M5)
+
+
+# R^2 = 1 - (RSS/SYY)
+RSS_M1 <- sum((wages$WAGE - fitted(M1))^2)
+RSS_M4 <- sum((wages$WAGE - fitted(M4))^2)
+RSS_M5 <- sum((wages$WAGE - exp(fitted(M5)))^2)
+
+SYY <- sum((wages$WAGE - mean(wages$WAGE))^2)
+
+1 - (RSS_M1 / SYY) # Wage ~ Edu + Sex
+1 - (RSS_M4 / SYY) # Wage ~ Edu + Sex + Experience
+1 - (RSS_M5 / SYY) # log(Wage) ~ Edu + Sex + Experience
+
+
+RSS_M4 <- sum((wages$WAGE - exp(fitted(M4)))^2)
+SYY <- sum((wages$WAGE - mean(wages$WAGE))^2)
+R2_M4 <- 1 - (RSS_M4 / SYY)
+
+wages <- mutate(wages, DEGREE = ifelse(EDUCATION %in% 0:11,"DNC HS",
+                                ifelse(EDUCATION %in% 12,"High School",
+                                ifelse(EDUCATION %in% 13:15,"Some University",
+                                ifelse(EDUCATION %in% 13:16,"Bachelors",
+                                ifelse(EDUCATION %in% 17:20,"Advanced Degree","None"))))))
+
+wages$DEGREE <- as.factor(wages$DEGREE)
+wages <- within(wages, DEGREE <- relevel(DEGREE, ref = "DNC HS"))
+
+temp <- lm(WAGE ~ DEGREE + SEX, wages)
+summary(temp)
+levels(wages$DEGREE)
+wages
+
+temp2 <- lm(WAGE ~ DEGREE + SEX + EXPERIENCE, wages)
+
+temp3 <- lm(log(WAGE) ~ DEGREE + SEX + EXPERIENCE, wages)
+
+temp4 <- lm(WAGE ~ EDUCATION + EXPERIENCE + SEX*RACE*OCCUPATION*SECTOR*MARR*UNION*SOUTH, wages)
+summary(temp4)
+
+
+
+tmp <- powerTransform ( cbind ( EDUCATION, EXPERIENCE, SEX ) ~ 1, data = subset(wages, EXPERIENCE >0) )
+summary(tmp)
+
+tmp <- powerTransform ( cbind ( EDUCATION, EXPERIENCE, SEX,RACE,OCCUPATION,SECTOR,MARR,UNION,SOUTH ) ~ 1, data = subset(wages, EXPERIENCE >0) )
+summary(tmp)
+
+temp5 <- lm(WAGE ~ EDUCATION + SEX + sqrt(EXPERIENCE), wages)
+summary(temp5)
+powerTransform(temp5)
+boxCox(temp5)
+temp6 <- lm(log(WAGE) ~ EDUCATION + SEX + sqrt(EXPERIENCE), wages)
+
+1 - (sum((wages$WAGE - fitted(temp5))^2)/SYY)
+1-(sum((wages$WAGE - exp(fitted(temp6)))^2)/SYY)
+
+tmp <- lm(log(WAGE) ~ bs(EDUCATION) + SEX + bs(EXPERIENCE), wages)
+summary(tmp)
+qplot(resid(tmp))
+
+tmp <- lm(log(WAGE) ~ bs(EDUCATION) + bs(EXPERIENCE) + SEX*RACE*OCCUPATION*SECTOR*MARR*UNION*SOUTH, wages)
+summary(tmp)
+qplot(hatvalues(M5))
+
+which(hatvalues(M5)>0.03)
+
+
+outlierTest(M5)
+
+sd(resid(M1))
+
+
+cleanwages <- subset(wages, hatvalues(M5) < 0.02)
+
+nrow(cleanwages)
+
+M6 <- lm(log(WAGE) ~ EDUCATION + SEX + EXPERIENCE,cleanwages)
+summary(M6)
+summary(M5)
+qplot(hatvalues(M5))
+qplot(hatvalues(M6))
+
+
+tmp <- lm(fitted(M1)~abs(resid(M1)), data=wages)
+
+wts <- 1/fitted(lm(abs(residuals(M1)) ~ fitted(M1)))^2
+
+wlstmp <- lm( WAGE ~ EDUCATION + SEX, data = wages, weights = wts)
+
+p <- ggplot(wages , aes ( x = EDUCATION, y = WAGE) )
+p + geom_jitter() + 
+  geom_abline ( intercept = coef(M1)[1], slope = coef(M1)[2] ,color="red") + 
+  geom_abline ( intercept = coef(wlstmp)[1], slope = coef(wlstmp)[2] ,color="blue")
+
+
+
+temp <- wages [, c("EDUCATION", "EXPERIENCE") ]
+prcomp(temp)
+biplot(princomp(temp))
+
+modEXP <- lm(WAGE ~ EXPERIENCE + SEX, wages)
+modEDU <- lm(EDUCATION ~ EXPERIENCE + SEX, wages)
+
+r1 <- resid(modEXP)
+r2 <- resid(modEDU)
+avp_ed_ex <- data.frame(r1, r2)
+head(avp_ed_ex)
+
+p_added_v_edu_exp <- ggplot( avp_ed_ex, aes ( x = r2, y = r1) ) 
+p_added_v_edu_exp + geom_point() +
+  geom_smooth(data=wages, method='lm',formula=y~x,color="pink")
+
+tmp <- lm(r1~r2)
+summary(tmp)
+summary(modEXP)
+
+
+tmp <- lm(WAGE ~ SEX, wages)
+
+
+tmp <- lm( log(WAGE) ~ EDUCATION + EXPERIENCE + SEX + OCCUPATION + SEX:OCCUPATION, data = wages)
+summary(tmp)
+
+
+tmp <- lm( log(WAGE) ~ EXPERIENCE * SEX, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION * SEX, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ AGE * SEX, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + AGE +SEX, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + AGE + SEX*OCCUPATION, data = wages)
+summary(tmp)
+
+summary(M5)
+summary(M6)
+confint(M6)
+
+summary(M1)
+summary(M4)
+summary(M5)
+
+wages$EDU_P_AGE <- wages$EDUCATION + wages$AGE
+wages$EDU_P_EXP <- wages$EDUCATION + wages$EXPERIENCE
+ggpairs(wages,columns=c("WAGE","EDUCATION","EXPERIENCE","AGE","EDU_P_AGE","EDU_P_EXP","EXP2"))
+
+
+tmp <- lm(WAGE ~ EDUCATION + AGE + SEX*OCCUPATION, data = wages)
+p <- ggplot( temp, aes ( x = fitted.M1., y = resid_wg_edu) ) 
+p + geom_point()
+
+tmp <- lm(WAGE ~ bs(EDUCATION) + EXPERIENCE + SEX*RACE*SECTOR*MARR*UNION*SOUTH, wages)
+
+tmp <- lm(log(WAGE) ~ EDUCATION + EXPERIENCE + SEX+RACE+OCCUPATION+SECTOR+MARR+UNION+SOUTH, wages)
+avPlots(tmp)
+residualPlots(tmp)
+
+boxcox(tmp)
+summary(tmp)
+
+tmp <- lm(WAGE ~ EDUCATION + EXPERIENCE + SEX, wages)
+
+resid_M5 <- resid(tmp)
+fitted_M5 <- fitted(tmp)
+
+df_M5 <- data.frame(resid_M5, fitted_M5)
+
+f_vs_rs_M5 <- ggplot( df_M5, aes ( x = fitted_M5, y = resid_M5) ) 
+f_vs_rs_M5 + geom_point() + #aes(color=wages$RACE)
+  facet_wrap(~wages$OCCUPATION) + 
+  ggtitle("Residuals vs Fitted Values for M5") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M5)")))
+
+
+fitted_M4 <- fitted(M5)
+temp <- data.frame(fitted_M4,wages$WAGE)
+inv_fitt_value_M1 <- ggplot( temp, aes ( x =wages.WAGE , y = fitted_M4) )
+inv_fitt_value_M1 + geom_point()
+
+tmp <- lm(log(WAGE) ~ EDUCATION + EXPERIENCE + SEX, wages)
+summary(tmp)
+
+tmp <- lm(log(WAGE) ~ EDUCATION + bs(EXPERIENCE,degree = 2) + SEX, wages)
+summary(tmp)
+
+
+
+# Mediation variable
+tmp1 <- lm(WAGE~SEX,wages)
+tmp2 <- lm(as.numeric(OCCUPATION)~SEX,wages)
+tmp3 <- lm(WAGE~SEX+as.numeric(OCCUPATION),wages)
+summary(tmp1)
+summary(tmp2)
+summary(tmp3)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE + UNION + OCCUPATION + RACE + MARR + SOUTH + SECTOR, data = wages)
+tmp <- lm( log(WAGE) ~ EDUCATION + EXPERIENCE + SEX * UNION * OCCUPATION * RACE * MARR * SOUTH * SECTOR, data = wages)
+tmp <- lm( log(WAGE) ~ bs(EDUCATION) + bs(EXPERIENCE) + SEX * UNION * OCCUPATION * RACE * MARR * SOUTH * SECTOR, data = wages)
+
+
+tmp <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE + UNION + OCCUPATION + RACE + MARR + SOUTH + SECTOR, data = wages)
+
+
+fn_bal <- function(dta, variable, yvar) {
+  dta$variable <- dta[, variable]
+  dta$yvar <- dta[, yvar]
+  tmp <-ggplot(dta, aes(x = variable, y = yvar))
+  if(class(dta$variable) == "factor"){
+    tmp + geom_boxplot() + 
+      xlab(toString(variable)) +
+      ylab("Resid M6")
+  } else {
+    tmp + geom_point() +
+      xlab(toString(variable)) +
+      ylab("Resid M6")
+  }
+    
+}
+
+grid.arrange(
+  fn_bal(wages, "EDUCATION", "residM6"),
+  fn_bal(wages, "SEX", "residM6"),
+  fn_bal(wages, "EXPERIENCE", "residM6"),
+  fn_bal(wages, "AGE", "residM6"),
+  fn_bal(wages, "OCCUPATION", "residM6"),
+  fn_bal(wages, "UNION", "residM6"),
+  nrow = 3, widths = c(1, 0.8)
+)
+
+grid.arrange(
+  fn_bal(wages, "EDUCATION", "residM1"),
+  fn_bal(wages, "SEX", "residM1"),
+  fn_bal(wages, "EXPERIENCE", "residM1"),
+  fn_bal(wages, "AGE", "residM1"),
+  fn_bal(wages, "OCCUPATION", "residM1"),
+  fn_bal(wages, "UNION", "residM1"),
+  nrow = 3, widths = c(1, 0.8)
+)
+
+
+wages$residM1 <- resid(M1)
+wages$residM6 <- resid(M6)
+p <- ggplot( wages, aes ( x = EXPERIENCE, y = residM6) )
+p+geom_point()
+
+M1 <- lm( WAGE ~ EDUCATION + SEX, data = wages)
+M2 <- lm( WAGE ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
+M3 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+M4 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+M5 <- lm( log(WAGE) ~ EDUCATION + SEX*OCCUPATION + EXPERIENCE, data = wages)
+
+
+qplot(wages$AGE)
+
+summary(lm( log(WAGE) ~ EDUCATION + SEX*EXPERIENCE, data = wages))
+confint(lm( log(WAGE) ~ EDUCATION + SEX*EXPERIENCE, data = wages))
+
+
+p <- ggplot( wages, aes ( x = AGE, y = WAGE) ) 
+p + geom_point()
+
+p <- ggplot( wages, aes ( x = SEX, y = log(WAGE)) )
+p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
+
+wages %>% 
+  group_by(UNION,SECTOR) %>%
+  summarise(no_rows = length(UNION))
+
+wages %>% 
+  group_by(OCCUPATION,SECTOR,UNION) %>%
+  summarise(no_rows = length(OCCUPATION))
+
+wages$resid_M6 <- resid(M6)
+wages$resid_M7 <- resid(M7)
+p <- ggplot( wages, aes ( x = MARR, y = resid_M6) ) 
+p + geom_boxplot()
+
+p <- ggplot( wages, aes ( x = MARR, y = resid_M7) ) 
+p + geom_boxplot()
+
+p <- ggplot( wages, aes ( x = UNION, y = SECTOR) ) 
+p + geom_boxplot()
