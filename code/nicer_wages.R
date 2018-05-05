@@ -793,7 +793,7 @@ p <- ggplot( wages, aes ( x = SEX, y = log(WAGE)) )
 p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
 
 wages %>% 
-  group_by(UNION,SECTOR) %>%
+  group_by(UNION,OCCUPATION) %>%
   summarise(no_rows = length(UNION))
 
 wages %>% 
@@ -810,3 +810,34 @@ p + geom_boxplot()
 
 p <- ggplot( wages, aes ( x = UNION, y = SECTOR) ) 
 p + geom_boxplot()
+
+tmp <- lm( log(WAGE) ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
+summary(tmp)
+
+
+tmp <- lm( WAGE ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + SEX, data = wages)
+wages$tmpr <- resid(tmp)
+
+tmp2 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+wages$tmp2r <- resid(tmp2)
+
+p <- ggplot( wages, aes ( x = tmp2r, y = tmpr) ) 
+p + geom_point()
+
+tmp3 <- lm( tmpr ~ tmp2r, data = wages)
+summary(tmp3)
+
+
+residualPlots(M3,terms = ~ 1)
+
+
+tmp <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE+ SEX + SEX*OCCUPATION , data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX*OCCUPATION , data = wages)
+summary(tmp)
+
+subset(wages,EXPERIENCE==max(wages$EXPERIENCE))

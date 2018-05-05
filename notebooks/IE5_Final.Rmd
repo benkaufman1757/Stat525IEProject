@@ -49,7 +49,7 @@ wages$MARR <- factor(wages$MARR, levels=c(0,1),
                      labels=c('Unmarried','Married'))
 
 wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
-wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = 6))
+wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = "Other"))
 # SECTOR doesn't need to be releveled 
 # same with RACE
 
@@ -68,7 +68,7 @@ In this paper we will be focusing around the impact of a worker's sex on their h
 * *SOUTH* : Indictor variable if a person is from the south or not
     0. Not From South
     1. From South
-* *SEX* : Catagorical variable indiciting whether one was male or female
+* *SEX* : Categorical variable indiciting whether one was male or female
     0. Male
     1. Female
 * *EXPERIENCE* : Number of years of work experience
@@ -77,22 +77,22 @@ In this paper we will be focusing around the impact of a worker's sex on their h
     1. In a Union
 * *WAGE* : Wage earned per hour
 * *AGE* : Age in year
-* *RACE* : Catagorical variable indiciting ones race
+* *RACE* : Categorical variable indiciting ones race
     1. Other
     2. Hispanic
     3. White
-* *OCCUPATION* : Catagorical variable indiciting ones occupation
+* *OCCUPATION* : Categorical variable indiciting ones occupation
     1. Management
     2. Sales
     3. Clerical
     4. Service
     5. Professional 
     6. Other
-* *SECTOR* : Catagorical variable indiciting ones sector
+* *SECTOR* : Categorical variable indiciting ones sector
     0. Other
     1. Manufacturing
     2. Construction
-* *MARRIED* : Catagorical variable indiciting ones marriage status
+* *MARRIED* : Categorical variable indiciting ones marriage status
     0. Unmarried
     1. Married
 
@@ -110,7 +110,17 @@ In this study we will not be looking numerically at the data shown above, instea
 
 ```{r fig2, echo=FALSE,, fig.width=7,fig.height=6,fig.cap="\\label{fig:figs} Scatterplot Matrix"}
 # CHANGE M/F COLOR
-ggpairs(wages, columns = c("EDUCATION", "EXPERIENCE", "AGE", "SEX" ,"WAGE"), aes(colour=SEX))
+pmat <- ggpairs(wages, columns = c("EDUCATION", "EXPERIENCE", "AGE", "SEX" ,"WAGE"), aes(colour=SEX))
+
+
+for(i in 1:pmat$nrow) {
+  for(j in 1:pmat$ncol){
+    pmat[i,j] <- pmat[i,j] + 
+        scale_color_manual(values=c("blue","pink")) + 
+        scale_fill_manual(values=c("blue","pink"))  
+  }
+}
+pmat
 ```
 
 
@@ -149,7 +159,9 @@ M2: E(Wage|Education, Sex) &= \beta_{0,2} + \beta_{1,2} Education + \beta_{2,2} 
 M2<-lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
 
 p <- ggplot(aes(x=EDUCATION, y=WAGE),data=wages)
-p + geom_point(data=wages, aes(color=SEX)) + geom_smooth(method='lm', aes(color=SEX), data=wages)
+p + geom_jitter(data=wages, aes(color=SEX)) + 
+  scale_color_manual(values=c("blue","pink")) +
+  geom_smooth(method='lm', aes(color=SEX), data=wages)
 ```
 
 
@@ -233,6 +245,7 @@ If we look at the fitted model we essentially see that $Age=6+1*(Education+Exper
 
 
 # Power Transformations
+
 In order to find a better fit to the data we can try to add some non-linearity to our model without making our model non-linear. We do this using power transformations on the predictors and then on the response.
 
 ```{r}
@@ -250,7 +263,44 @@ coef(powerTransform(WAGE~tranEXPERIENCE + EDUCATION + SEX, data=wages), round=TR
 
 Since our suggested value of $\lambda$ from the transformation is zero we will take the log of our response variable in our new model.
 
-# M4: log(WAGE) ~ EDUCATION + SEX + EXPERIENCE
+## Quickly Reaffirming Assumptions Made Before Power Transformations
+
+The first thing we tried to justify in our study is that there was non-significant interaction between Education and Sex in M2. This may have not been the case had we used log(Wage) as our response. Here we have made a model which models the log(Wage) by Education and Sex and the interaction between Sex and Education and find that the interaction term is not really significant. This means that in our future models which use log(Wage) as the response we don't have to include this interaction term because the 95% confindence interval on the interaction term contains zero (-0.000732, 0.062341). Visually we can see this in a graph similar to <FIGURE M2> shown below; the slopes of the regression lines for men and women are about the same.
+
+
+```{r}
+M2_2 <- lm( log(WAGE) ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
+summary(M2_2)
+confint(M2_2)
+
+p <- ggplot(aes(x=EDUCATION, y=log(WAGE)),data=wages)
+p + geom_point(data=wages, aes(color=SEX)) + 
+  geom_smooth(method='lm', aes(color=SEX), data=wages)
+```
+
+The other procedure we conducted was the choice to add Experience to our model. Here we will show that even when using the log(Wage) as our response we are justified in adding it to our model.
+
+```{r}
+tmp <- lm( WAGE ~ EDUCATION + SEX + SEX:EDUCATION, data = wages)
+summary(tmp)
+
+tmp <- lm( log(WAGE) ~ EDUCATION + SEX, data = wages)
+wages$tmpr <- resid(tmp)
+
+tmp2 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+wages$tmp2r <- resid(tmp2)
+
+p <- ggplot( wages, aes ( x = tmp2r, y = tmpr) ) 
+p + geom_point()
+
+tmp3 <- lm( tmpr ~ tmp2r, data = wages)
+summary(tmp3)
+
+```
+
+The figure above is an added variable plot for Experience added to M1 where the response for M1 is log(Wage) instead of Wage. We find that the remaining variation explained is 9.517% which is an increase from roughly 8% from our findings in our initial added variable plot.
+
+# Model 4: log(WAGE) ~ EDUCATION + SEX + sqrt(EXPERIENCE+1)
 
 ```{r}
 M4<-lm(log(WAGE)~tranEXPERIENCE + EDUCATION + SEX, data=wages)
@@ -264,11 +314,68 @@ summary(M4)
 
 In our new transformed model our definition of the wage gap between men and women changes. Our interpretation of the wage gap now becomes the percentage difference in wage between men and women adjusting for all other variables. In M4 we find that adjusting for *Education* and our new interpretation of *Experience* women make 25.79% less than men. As usual, for reference our $R^2$ for M4 is 0.2894 however we cannot compared this directly to the $R^2$ values of our previous models since we have taken the log.
 
-# M5: log(WAGE) ~ EDUCATION + SEX*OCCUPATION + EXPERIENCE
+While testing our models we found that in M4 we have finally solved our problem of non-constant variance (heteroscedasticity) which violates an assumption of linear models. We see this the plots of residuals versus fitted values. In residuals versus fitted values plot for model 3 we see an example of a right-opening megaphone:
 
-Now that we are accounting for a person's education and experience we can now try to explore the effect of a person's occupation on wage.
+```{r}
+residualPlots(M3,terms = ~ 1)
+```
 
-We get some intuition for this without controlling for Education and Experience
+However, in model 4 we find there is constant variance which means our model is valid.
+
+```{r}
+residualPlots(M4,terms = ~ 1)
+```
+
+## Mincer Earnings Function
+
+At this point our model looks very similar to a prominent econometric model called the Mincer Earnings Function. The model is defined roughly as follows in [1]. 
+
+\begin{align}
+MEE: E(Wage|Education, Sex, Experience) &= log(w_0) + a Education + b Experience - c Experience^2 + \text{Other Variables}
+\end{align}
+
+In this case $w_0$ is the average wage a person in the reference group would expect to make. The coefficient a is interpretted as the average rate of return to schooling assuming workers are of equal ability. The coefficients b and c estimate the growth in earnings from an additional year of experience and are only greater than zero if it is assumed a worker invests in on-the-job-training. In short, since this isn't an economics paper, the squared term for experience comes from the idea that real post school investment in human capital decreases (assumed to be linearly decreasing) over the lifespan of the worker. This and the derivation of the Mincer Earnings Function is further described in [2].
+
+For our purposes we will add Sex to our model.
+
+```{r}
+MEF<-lm(log(WAGE)~ EDUCATION + EXPERIENCE + I(EXPERIENCE^2) + SEX, data=wages)
+summary(M4)
+summary(MEF)
+```
+
+What we find is that our $R^2$ hardly increases compared to our M4, the power transformed model which uses the square root of experience, from 0.2894 to 0.2968. What we also find is that the coefficient on the experience squared term is significant and explains about 3% of the remaining variance compared to just using experience alone. The main difference between M4 and the MEF is the interpretation of the effect of experience on wages. If we look at a graph the change in hourly wage due to experience versus the amount of years of expereince the shape of the these graphs differs between these models as shown in the figure below. What ends up happening is that the rate of return to schooling remains about the same at 0.097740 in M4 and 0.0912936 in MEF and the wage gap remains almost exactly the same at about -0.25.
+
+![picture \label{Weekly Earnings by Level of Education and Sex over Lifespan}](images/MEF_vs_M4.png)
+
+
+Since our models are very similar and the justification for the Mincer Earnings Function founded by us we will use M4 as the base model for expansion in the rest of this study.
+
+
+# Model 5: log(WAGE) ~ EDUCATION + SEX + OCCUPATION + sqrt(EXPERIENCE+1)
+
+Now that we are accounting for a person's education and experience we can now try to explore the effect of a person's occupation on wage. The justification for adding occupation into our model is that even after you account for all other variables in our model, a person's occupation may influence their wage. One way to think about this is that two jobs may require the same levels of education and experience but may incur different levels of risk of physical harm on the worker. Economic theory would suggest that the person who incurs more risk should make proportionally more money. This is just an example of how the type of occupation one takes can influence wage while controlling for our other variables. In M5 we explore the main effects model.
+
+```{r echo=FALSE}
+M5 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX + OCCUPATION, data = wages)
+summary(M5)
+```
+
+Under this model we find that women make -22.7408% less than men while controlling for all of these factors. We also note that our $R^2$ increased to 0.3346 and our RSE slightly decreased to 0.4338.
+
+# Model 6: log(WAGE) ~ EDUCATION + SEX * OCCUPATION + sqrt(EXPERIENCE+1)
+
+```{r echo=FALSE}
+M6 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX * OCCUPATION, data = wages)
+summary(M6)
+```
+
+In model 6 
+```{r}
+p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
+p + geom_boxplot() + ggtitle("Wage vs Sex") + facet_wrap(~OCCUPATION)
+```
+
 ```{r}
 p <- ggplot( wages, aes ( x = SEX, y = log(WAGE)) )
 p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
@@ -276,7 +383,30 @@ p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
 
 Notice that the coefficients on the interaction terms are the differences in the gaps with respect to the gap in occupation other. Notice that the only other bigger gap is in Sales, this is denoted by negative sign on the SexFemale:OccupationSales coefficient
 
+# Adding Other Variables and Making New Models
+
+```{r}
+wages$resid_M5 <- resid(M5)
+p <- ggplot( wages, aes ( x = UNION, y = resid_M5) )
+p + geom_boxplot()
+```
+
+```{r echo=FALSE}
+M6 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX*OCCUPATION + UNION, data = wages)
+summary(M6)
+```
+
+```{r}
+wages$resid_M6 <- resid(M6)
+p <- ggplot( wages, aes ( x = SOUTH, y = resid_M6) )
+p + geom_boxplot()
+```
+
+
+
+
 # Caveats and Final Notes
+
 
 
 
