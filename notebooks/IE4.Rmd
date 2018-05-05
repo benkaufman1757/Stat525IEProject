@@ -1,10 +1,10 @@
 ---
 title: "IE4"
-output:
-  html_document:
-    df_print: paged
-  html_notebook: default
-  pdf_document: default
+output: pdf_document
+author:
+- Ben Kaufman
+- Vic Chan
+- Ziwei Zhang
 ---
 
 ```{r include=FALSE}
@@ -96,28 +96,30 @@ In this paper we will be focusing around the impact of a worker's sex on their h
     0. Unmarried
     1. Married
 
-
 ## Does a "Wage Gap" Exist between Men and Women?
+
 The first question we will attempt to answer is whether or not a wage gap exists between men and women. We can try to visualize the difference in male and female wages by using a box plot. From the figure below we can clearly see that the mean wage for men and women, denoted by the black line in each respective box, is unequal; on average men earn more than women.  
+
 ```{r echo=FALSE}
 p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
 p + geom_boxplot() + ggtitle("Boxplot of Wage vs Sex")
 ```
 
 A natural question to ask is, "Is this difference significant?" In order to answer this we must construct a statistical test. Since we have a relatively large sample, 245 women and 289 men, we will conduct a large sample hypothesis t-test with a 95% confidence interval.
+
 ```{r echo=FALSE}
 cat(paste("Number of women: ", nrow(women), "\n","Number of men: ", nrow(men), sep = ""))
 ```
 
-$$
+\begin{align*}
 H_o : \mu_{male} = \mu_{female}\\
 H_a : \mu_{male}\geq\mu_{female}
-$$
+\end{align*}
+
 ```{r echo=FALSE}
 t.test(men$WAGE, women$WAGE, alternative = "greater")
 ```
 Based on the results from our t-test we must reject the null hypothesis and accept the alternative hypothesis. In other words, the difference in the average wages between men and women is statistically significant. Men make ~\$10/hr on average and women make ~\$7.87 in 1985 dollars, in 2018 dollars this would be \$23.12/hr and \$18.21/hr respectively. Now that we have established that a statistically significant wage gap exists this motivates us to investigate why a wage gap between men and women exists. 
-
 
 ## Education and Wage Gap
 
@@ -140,12 +142,10 @@ Our second hypthesis is people are paided proportional to their level of educati
 
 The next questions we will attempt to tackle are, are people paid proportional to their level of education and is that proportion the same for men and women? In order to reason about this question we require two linear models. We will define our models as such:
 
-$$
 \begin{align}
 M1: E(Wage|Education, Sex) &= \beta_{0,1} + \beta_{1,1} Education + \beta_{2,1} Sex \\
 M2: E(Wage|Education, Sex) &= \beta_{0,2} + \beta_{1,2} Education + \beta_{2,2} Sex + \beta_{3,2} Sex:Education
 \end{align}
-$$
 
 ```{r echo=FALSE}
 M1<-lm(WAGE~EDUCATION+SEX, data=wages)
@@ -170,21 +170,17 @@ coef(M1)
 confint(M1)
 ```
 
-
 ## Adding Experience to Our Model
 
 As it stands our model only uses sex and education as predictors. As we know from the real world, your wage might be related to the amount of experience you have had in a job. For example, more exclusive jobs normally pay more and the reason they may be exclusive is because they may require x years of experience. This allows us to hypothesize that your wage will depend upon the amount of experience you've had, more specifically, we would believe that your wage should increase with your level of experience. In order to justify adding this variable to our model we will create a separate model which attempts to model this new variable using the pre-existing regressors in our original model. We will then use this to construct an added variable plot for years of experience.
 
-$$
 \begin{align}
 M3: E(Wage|Education, Sex, Experience) &= \beta_{0,3} + \beta_{1,3} Education + \beta_{2,3} Sex + \beta_{3,3} Experience \\
 \end{align}
-$$
 
 ```{r echo=FALSE}
 M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
 ```
-
 
 ```{r echo=FALSE}
 resid_M1 <- resid(M1)
@@ -213,11 +209,9 @@ cat(paste("R squared value of regression on AVP for experience:",round(summary(e
 
 In the plot of the residuals versus the fitted values for M1 something of concern is that the variance is increasing as the number of years of education is increasing; we may return to this later. If we move on to the results of the added variable plot we see that almost 8% of the remaining variance in our model is explained by adding the variable for experience to our existing model. For our purposes this is a considerable amount because it increases our total explained variability by about 50%. This leads to actually defining our new model which includes experience:
 
-$$
 \begin{align}
 M4: E(Wage|Education, Sex, Experience) &= \beta_{0,4} + \beta_{1,4} Education + \beta_{2,4} Sex + \beta_{3,4} Experience \\
 \end{align}
-$$
 
 ```{r include=FALSE}
 M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
@@ -288,11 +282,10 @@ qplot(log(wages$WAGE), geom="histogram") + xlab("log(WAGE)")
 
 Now that we have properly justified our usage of modeling log(WAGE) rather than wage let's now define two new models:
 
-$$
 \begin{align}
 M5: E(log(Wage)|Education, Sex, Experience) &= \beta_{0,5} + \beta_{1,5} Education + \beta_{2,5} Sex + \beta_{3,5} Sex:Education
 \end{align}
-$$
+
 
 ```{r include=FALSE}
 M5 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
@@ -301,9 +294,8 @@ summary(M5)
 
 Once we fit M5 we find that our residual standard error is now 0.4523 and our $R^2$ has increased from 0.2532 to 0.2696 when going from M4 to M5. At this point our model roughly reflects a famous econometric regression model: the Mincer Earnings Equation. The model is the same as M5 with an added term that represents $EXPERIENCE^2$ with another coefficient. For our final project we will explore this model more in depth and individually explore each occupation.
 
-## Ignore bottom part, for future use
 
-
+## ~~~~~Ignore Below This Point~~~~
 
 ## Exploring Occupation
 
@@ -330,5 +322,7 @@ ggplot(occ_table, aes(x=OCC_SEC,y=MeanWage)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-
-well here we are
+\begin{align}
+E(log(Wage)|\textbf{X}) &= \beta_0 + \beta_1 Education + \beta_2 Age + \beta_3 Sex + \beta_4 Management + \beta_5 Sales + \beta_6 Clerical + \beta_7 Service +
+\beta_8 Professional + \beta_9 Sex:Management + \beta_10 Sex:Sales + \beta_11 Sex:Clerical + \beta_12 Sex:Service + \beta_13 Sex:Professional
+\end{align}

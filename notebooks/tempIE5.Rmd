@@ -1,0 +1,318 @@
+---
+title: "IE5"
+output: 
+  html_document:
+    code_folding: hide
+author:
+- Ben Kaufman
+- Vic Chan
+- Ziwei Zhang
+---
+  
+```{r include=FALSE}
+library(ggplot2)
+library(GGally)
+library(ggpmisc)
+library(dplyr)
+library(knitr)
+library(MASS)
+library(gridExtra)
+library(splines)
+library(car)
+# create dataframe
+wages <- read.csv(file = "../data/cpswages.dat.txt", header = FALSE, sep=" ")
+names(wages) <- c("EDUCATION",	"SOUTH", "SEX", "EXPERIENCE", "UNION",  "WAGE", "AGE", "RACE", "OCCUPATION", "SECTOR", "MARR")
+wages = wages[,c(1,2,3,4,5,7,8,9,10,11,6)]
+
+# Set up factors
+wages$SOUTH <- factor(wages$SOUTH, levels=c(0,1),
+                      labels=c('North','South'))
+
+wages$SEX <- factor(wages$SEX, levels=c(0,1),
+                    labels=c('Male','Female'))
+
+wages$UNION <- factor(wages$UNION, levels=c(0,1),
+                      labels=c('Non-Unionized','Unionized'))
+
+wages$RACE <- factor(wages$RACE, levels=c(1,2,3),
+                     labels=c('Other','Hispanic', 'White'))
+
+wages$OCCUPATION <- factor(wages$OCCUPATION, levels=c(1,2,3,4,5,6),
+                           labels=c('Management','Sales','Clerical','Service','Professional','Other'))
+
+wages$SECTOR <- factor(wages$SECTOR, levels=c(0,1,2),
+                       labels=c('Other','Manufacturing','Construction'))
+
+wages$MARR <- factor(wages$MARR, levels=c(0,1),
+                     labels=c('Unmarried','Married'))
+
+wages$MANUFACTURING <- 1*(wages$SECTOR == 'Manufacturing')
+wages$CONSTRUCTION <- 1*(wages$SECTOR == 'Construction')
+
+wages$MANAGEMENT <- 1*(wages$OCCUPATION == 'Management')
+wages$SALES <- 1*(wages$OCCUPATION == 'Sales')
+wages$CLERICAL <- 1*(wages$OCCUPATION == 'Clerical')
+wages$SERVICE <- 1*(wages$OCCUPATION == 'Service')
+wages$PROFESSIONAL <- 1*(wages$OCCUPATION == 'Professional')
+
+wages$WHITE <- 1*(wages$RACE == 'White')
+wages$HISPANIC <- 1*(wages$RACE == 'Hispanic')
+
+wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
+wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = 6))
+
+women <- subset(wages,SEX=='Female')
+men <- subset(wages,SEX=='Male')
+```
+
+## Models 1 and 2
+
+\begin{align}
+M1: E(Wage|Education, Sex) &= \beta_{0,1} + \beta_{1,1} Education + \beta_{2,1} Sex \\
+M2: E(Wage|Education, Sex) &= \beta_{0,2} + \beta_{1,2} Education + \beta_{2,2} Sex + \beta_{3,2} Sex:Education
+\end{align}
+
+```{r include=FALSE}
+M1<-lm(WAGE~EDUCATION+SEX, data=wages)
+M2<-lm(WAGE~EDUCATION+SEX+SEX:EDUCATION, data=wages)
+
+cat(paste("Residual Standard Error for M1: ", round(sigma(M1),digits = 4), "\n",
+"Residual Standard Error for M2: ", round(sigma(M2),digits = 4), "\n",
+"Coefficient for interaction term: ",
+round(coef(M2)["EDUCATION:SEXFemale"],digits=4), "\n",
+"Confidence interval for coefficient of interaction term: ",
+list(round(confint(M2)["EDUCATION:SEXFemale",],digits=4)), "\n",
+"p-value for interaction term coefficient: ", 
+round(summary(M2)$coefficients[4,4],digits=4),
+sep = ""))
+```
+
+## Throw out M2 because interaction term is not significant and hardly changes $R^2$
+
+
+```{r echo=FALSE}
+regplot <- function(df, xvar, yvar, mod) {
+  ggplot(df, aes(x = df[, xvar], y = df[, yvar])) +
+    geom_jitter() + xlab(xvar) + ylab(yvar) + ggtitle(toString(mod$call)) +
+    geom_abline ( intercept = coef(mod)[1], slope = coef(mod)[2], color="black" ) + 
+    theme_bw()
+}
+
+grid.arrange(
+  regplot(wages,"EDUCATION","WAGE",M1),
+  regplot(wages,"EDUCATION","WAGE",M2),
+  nrow = 1, widths = c(1, 0.8)
+)
+```
+
+## Fitted vs Residuals for M1
+
+THIS PLOT SUGGESTS NON-CONSTANT VARIANCE, WITHHOLDING TRANSFORMATION UNTIL MORE VARIABLES ADDED TO THE MODEL
+
+
+```{r echo=FALSE}
+resid_M1 <- resid(M1)
+fitted_M1 <- fitted(M1)
+
+res_fit_df <- data.frame(resid_M1, fitted_M1)
+f_vs_rs_M1 <- ggplot( res_fit_df, aes ( x = fitted_M1, y = resid_M1) ) 
+f_vs_rs_M1 + geom_point() +
+  ggtitle("Plot of Residuals vs Fitted Values for M1") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M1)")))
+```
+
+## Inverse fitted values plot for M1
+
+THIS SUGGESTS A LOG TRANSFORM
+
+
+```{r}
+fitted_M1 <- fitted(M1)
+inv_fitt_df <- data.frame(fitted_M1, wages$WAGE)
+inv_fitt_value_M1 <- ggplot( inv_fitt_df, aes ( x =wages.WAGE , y = fitted_M1) )
+inv_fitt_value_M1 + 
+  geom_jitter(height=0.2,width=0) +
+  xlab("y") + ylab(expression(hat(y))) + ggtitle("Inverse Fitted Value Plot of M1")
+```
+
+
+## Adding Experience to Our Model
+
+
+\begin{align}
+M3: E(Wage|Education, Sex, Experience) &= \beta_{0,3} + \beta_{1,3} Education + \beta_{2,3} Sex + \beta_{3,3} Experience
+\end{align}
+
+```{r echo=FALSE}
+M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
+```
+
+
+## ADDED VARIABLE PLOT
+
+LOOKS PRETTY LINEAR, R^2 SUGGESTS 8% OF REMAINING VARIANCE EXPLAINED
+
+```{r echo=FALSE}
+resid_M3 <- resid(M3)
+
+avp_df <- data.frame(resid_M1, resid_M3, fitted_M1)
+ex_avp_mod <- lm(resid_M1 ~ resid_M3, data = avp_df)
+
+p_added_v_edu_exp <- ggplot( avp_df, aes ( x = resid_M3, y = resid_M1) ) 
+p_added_v_edu_exp + geom_point() +
+  #geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
+  geom_abline ( intercept = coef(ex_avp_mod)[1], slope = coef(ex_avp_mod)[2], color="blue" ) +
+  ggtitle("Added Variable Plot for Experience") +
+  xlab(expression(paste(hat(e), "(M3)"))) +
+  ylab(expression(paste(hat(e), "(M1)")))
+
+cat(paste("R squared value of regression on AVP for experience:",round(summary(ex_avp_mod)$r.squared,digits = 4)))
+summary(ex_avp_mod)
+```
+
+## CREATING MODEL 4
+
+\begin{align}
+M4: E(Wage|Education, Sex, Experience) &= \beta_{0,4} + \beta_{1,4} Education + \beta_{2,4} Sex + \beta_{3,4} Experience \\
+\end{align}
+
+```{r include=FALSE}
+M4 <- lm( WAGE ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+summary(M4)
+```
+
+
+## Age and Collinearity
+
+LOOK AT CORRELATION BETWEEN EXPERIENCE AND AGE, EXP+EDU AND AGE, explain why education alone
+
+```{r echo=FALSE}
+ggpairs ( wages, columns = c("EDUCATION","EXPERIENCE","AGE","ED_PLUS_EX", "WAGE", "SEX") )
+```
+
+FROM THIS WE SEE THAT AGE = 6 + (EDUCATION + EXPERIENCE)
+THIS MAKES SENSE BECAUSE ALMOST EVERYONE STARTS FIRST GRADE AT AGE 6 IN THE US
+
+```{r echo=FALSE}
+collin_mod <- lm(AGE ~ ED_PLUS_EX, wages)
+summary(collin_mod)
+```
+
+## Variable Transformation
+
+STILL HAVE CONE SHAPE WHICH IMPLIES NONCONSTANT VARIANCE
+
+```{r echo=FALSE}
+resid_M4 <- resid(M4)
+fitted_M4 <- fitted(M4)
+
+res_fit_df <- data.frame(resid_M4, fitted_M4)
+f_vs_rs_M4 <- ggplot( res_fit_df, aes ( x = fitted_M4, y = resid_M4) ) 
+f_vs_rs_M4 + geom_point() +
+  ggtitle("Plot of Residuals vs Fitted Values for M4") + 
+  xlab(expression(hat(y))) + 
+  ylab(expression(paste(hat(e), "(M4)")))
+```
+
+
+THIS SUGGESTS A LOG TRANSFORM
+
+```{r include=FALSE}
+inv_fitt_df_M4 <- data.frame(fitted_M4, wages$WAGE)
+inv_fitt_value_M4 <- ggplot( inv_fitt_df_M4, aes ( x =wages.WAGE , y = fitted_M4) )
+inv_fitt_value_M4 + 
+  geom_jitter(height=0.2,width=0) +
+  xlab("y") + ylab(expression(hat(y))) + ggtitle("Inverse Fitted Value Plot of M4")
+```
+
+USING MODEL 4 IT IS SUGGESTED BY THE BOX COX METHOD THAT WE TRANSFORM OUR RESPONSE VARIABLE USING LOG
+
+```{r}
+summary(powerTransform(M4,family="bcPower"))
+```
+
+
+## NEW LOG MODEL
+
+Now that we have properly justified our usage of modeling log(WAGE) rather than wage let's now define a new model:
+
+\begin{align}
+M5: E(log(Wage)|Education, Sex, Experience) &= \beta_{0,5} + \beta_{1,5} Education + \beta_{2,5} Sex + \beta_{3,5} Experience
+\end{align}
+
+
+```{r include=FALSE}
+M5 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+summary(M5)
+```
+
+## Comparing R^2
+
+R^2/ RSS of fitted values
+
+
+## Adding Occupation M6
+
+```{r include=FALSE}
+M6 <- lm( log(WAGE) ~ EDUCATION + SEX + EXPERIENCE + OCCUPATION, data = wages)
+summary(M6)
+```
+
+\begin{align*}
+M6: E[log(Wage)|...Occupation] &= \beta_{0,6} + \beta_{1,6} Education + \beta_{2,6} Sex + \beta_{3,6} Experience + \\
+& \beta_{4,6} Management + \beta_{5,6} Sales + \beta_{6,6} Clerical + \beta_{7,6} Service + \beta_{8,6} Professional
+\end{align*}
+
+$\beta_{2,6}$ is the wage gap between men and women in occupation other
+
+## OCCUPATION INTERACTION
+
+```{r include=FALSE}
+M7 <- lm( log(WAGE) ~ EDUCATION + SEX*OCCUPATION + EXPERIENCE, data = wages)
+summary(M7)
+```
+
+\begin{align*}
+M7: E[log(Wage)|...Occupation] &= \beta_{0,7} + \beta_{1,7} Education + \beta_{2,7} Sex + \beta_{3,7} Experience + \\
+& \beta_{4,7} Management + \beta_{5,7} Sales + \beta_{6,7} Clerical + \beta_{7,7} Service + \\
+& \beta_{8,7} Professional + \beta_{9,7} Sex:Management + \beta_{10,7} Sex:Sales \\
+& \beta_{11,7} Sex:Clerical + \beta_{12,7} Sex:Service + \beta_{13,7} Sex:Professional
+\end{align*}
+
+$\beta_{2,7}$ is the average difference in wage in occupation other
+$\beta_{4:8,7}$ are the differences in wages for each occupation for men
+$\beta_{9:13,7}$ are the differences in M/F wages compared to difference in occupation other
+
+
+## ~~~~~Ignore Below This Point~~~~
+
+## Exploring Occupation
+
+Now that we are accounting for a person's education and experience we can now try to explore the effect of a person's occupation on wage. Intuitively you can think to yourself, does a hamburger flipper make as much as a CEO of a major company; the answer is definitely not. We can apply at least some level of reasoning to this claim. Considering our current model, which accounts for education and experience, it is insufficient to claim that the CEO makes more than the hamburger flipper because the CEO has a PHD and the hamburger flipper didn't graduate high school nor is it sufficient to say that the CEO has had more experience nor is any combination of the prior two arguments. At this point we claim that the occupation you are in can determine your wage independently (enough) of education and experience. Some reasons may include the level of physical risk involved in job, for example, if there are two jobs that require the same level of education and experience and one job has a higher level of risk than the other, say a tree logger (one of the most dangerous jobs) and a cashier, we would expect the tree logger to earn more because his wage will compensate him for the additional risk he takes on. 
+
+
+```{r echo=FALSE}
+occ_table <- wages %>% 
+  group_by(OCCUPATION,SECTOR) %>%
+  summarise(Total = length(OCCUPATION),
+            Male = length(subset(OCCUPATION,SEX=="Male")),
+            Female = length(subset(OCCUPATION,SEX=="Female")),
+            MeanWage = round(mean(WAGE),digits = 4),
+            se = sd(WAGE))
+kable(occ_table)
+occ_table$OCC_SEC <- paste(substring(occ_table$OCCUPATION,1,4) ,substring(occ_table$SECTOR,1,4) )
+occ_table
+#kable(subset(occ_table,Total>=20))
+ggplot(occ_table, aes(x=OCC_SEC,y=MeanWage)) +
+  geom_errorbar(aes(ymin=MeanWage-se, ymax=MeanWage+se), width=.1) +
+  geom_point() + 
+  xlab("Abbreviated Occupation-Sector Combination") + 
+  ylab("Mean Wage") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+\begin{align}
+E(log(Wage)|\textbf{X}) &= \beta_0 + \beta_1 Education + \beta_2 Age + \beta_3 Sex + \beta_4 Management + \beta_5 Sales + \beta_6 Clerical + \beta_7 Service +
+  \beta_8 Professional + \beta_9 Sex:Management + \beta_10 Sex:Sales + \beta_11 Sex:Clerical + \beta_12 Sex:Service + \beta_13 Sex:Professional
+\end{align}
