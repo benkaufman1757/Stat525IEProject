@@ -183,31 +183,24 @@ M3 <- lm( EXPERIENCE ~ EDUCATION + SEX, data = wages)
 ```
 
 ```{r echo=FALSE}
-resid_M1 <- resid(M1)
-resid_M3 <- resid(M3)
-fitted_M1 <- fitted(M1)
+wages$resid_M1 = resid(M1)
 
-avp_df <- data.frame(resid_M1, resid_M3, fitted_M1)
-ex_avp_mod <- lm(resid_M1 ~ resid_M3, data = avp_df)
+avp1_mod <- lm(EXPERIENCE~EDUCATION + SEX, data=wages)
+wages$resid_AVP1_x = resid(avp1_mod)
+avp1_1 <- lm(resid_M1 ~ resid_AVP1_x, wages)
 
-f_vs_rs_M1 <- ggplot( avp_df, aes ( x = fitted_M1, y = resid_M1) ) 
-f_vs_rs_M1 + geom_point() +
-  ggtitle("Plot of Fitted vs Residuals for M1") + 
-  xlab(expression(hat(y))) + 
-  ylab(expression(paste(hat(e), "(M1)")))
+p <- ggplot(aes(x=resid_AVP1_x, y=resid_M1), data=wages)
+p + geom_point() + 
+  ggtitle("Added Variable Plot for EXPERIENCE") + 
+  xlab('Residual of EXPERIENCE ~ EDUCATION + SEX') + 
+  ylab('Residual of M1') + 
+  geom_abline ( intercept = coef(avp1_1)[1], slope = coef(avp1_1)[2], color="blue" )
 
-p_added_v_edu_exp <- ggplot( avp_df, aes ( x = resid_M3, y = resid_M1) ) 
-p_added_v_edu_exp + geom_point() +
-  #geom_smooth(data=wages, method='lm',formula=y~x,color="pink") +
-  geom_abline ( intercept = coef(ex_avp_mod)[1], slope = coef(ex_avp_mod)[2], color="blue" ) +
-  ggtitle("Added Variable Plot for Experience") +
-  xlab(expression(paste(hat(e), "(M3)"))) +
-  ylab(expression(paste(hat(e), "(M1)")))
-
-cat(paste("R squared value of regression on AVP for experience:",round(summary(ex_avp_mod)$r.squared,digits = 4)))
+summary(avp1_1)
+confint(avp1_1)
 ```
 
-In the plot of the residuals versus the fitted values for M1 something of concern is that the variance is increasing as the number of years of education is increasing; we may return to this later. If we move on to the results of the added variable plot we see that almost 8% of the remaining variance in our model is explained by adding the variable for experience to our existing model. For our purposes this is a considerable amount because it increases our total explained variability by about 50%. This leads to actually defining our new model which includes experience:
+In the above added variable plot we see that there is a potentially solid linear fit with a non-zero slope. By looking at the $R^2$ value of an OLS model fitted to this data we find that almost 8% of the remaining variance in our model is explained by adding experience to our existing model. For our purposes this is a considerable amount because it increases our total explained variability by about 50%. This leads to actually defining our new model which includes experience:
 
 \begin{align}
 M4: E(Wage|Education, Sex, Experience) &= \beta_{0,4} + \beta_{1,4} Education + \beta_{2,4} Sex + \beta_{3,4} Experience \\

@@ -793,11 +793,15 @@ p <- ggplot( wages, aes ( x = SEX, y = log(WAGE)) )
 p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
 
 wages %>% 
-  group_by(UNION,OCCUPATION) %>%
+  group_by(OCCUPATION,UNION) %>%
   summarise(no_rows = length(UNION))
 
 wages %>% 
-  group_by(OCCUPATION,SECTOR,UNION) %>%
+  group_by(UNION) %>%
+  summarise(no_rows = length(UNION))
+
+wages %>% 
+  group_by(OCCUPATION,SEX) %>%
   summarise(no_rows = length(OCCUPATION))
 
 wages$resid_M6 <- resid(M6)
@@ -841,3 +845,28 @@ tmp <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX*OCCUPATION , data = wage
 summary(tmp)
 
 subset(wages,EXPERIENCE==max(wages$EXPERIENCE))
+
+### AVP mincer
+MEFtmp <- lm( I(EXPERIENCE^2) ~ EDUCATION + SEX + EXPERIENCE, data = wages)
+MEFtmp2 <- lm(log(WAGE)~ EDUCATION + EXPERIENCE + SEX, data=wages)
+
+wages$MEFtmpr <- resid(MEFtmp)
+wages$MEFtmp2r <- resid(MEFtmp2)
+
+p <- ggplot( wages, aes ( x = MEFtmpr, y = MEFtmp2r) ) 
+p + geom_point() + geom_smooth(method = "lm")
+
+MEFavp <- lm( MEFtmp2r ~ MEFtmpr, data = wages)
+summary(MEFavp)
+confint(MEFavp)
+
+
+
+tmp <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX*OCCUPATION + UNION, data=wages)
+summary(tmp)
+
+anova(tmp)
+
+
+tmp <- lm( log(WAGE) ~ SEX, data=wages)
+summary(tmp)
