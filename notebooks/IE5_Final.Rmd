@@ -1,10 +1,10 @@
 ---
 title: "IE5"
 output: 
-  html_document:
-    code_folding: hide
   pdf_document:
     fig_caption: yes
+  html_document:
+    code_folding: hide
 author:
 - Ben Kaufman
 - Vic Chan
@@ -13,6 +13,7 @@ author:
 
 ```{r include=FALSE}
 library(ggplot2)
+library(scales)
 library(GGally)
 library(ggpmisc)
 library(dplyr)
@@ -49,7 +50,8 @@ wages$MARR <- factor(wages$MARR, levels=c(0,1),
                      labels=c('Unmarried','Married'))
 
 wages$ED_PLUS_EX <- wages$EDUCATION + wages$EXPERIENCE
-wages <- within(wages, OCCUPATION <- relevel(OCCUPATION, ref = "Other"))
+wages$OCCUPATION <- factor(wages$OCCUPATION, levels = c("Other", "Management", "Sales", "Clerical", "Service", "Professional"))
+
 # SECTOR doesn't need to be releveled 
 # same with RACE
 
@@ -100,6 +102,7 @@ In this paper we will be focusing around the impact of a worker's sex on their h
 
 
 # Background Information on the Wage Gap
+
 Something that comes to mind when thinking of the determinants of wage is a person's level of education. Loosely speaking, one would expect that the higher your level of education, the higher your hourly wage should be. There is some empirical evidence behind this claim. If we look at data from the US BLS Annual Demographic Supplement of the CPS from 2013 we find that this is generally true for those above the age of 25. Also, interestingly, if we pay close attention to the scales of each axis, we find that on average, controlling for education and sex, men make more than women on average.
 
 ![picture \label{Weekly Earnings by Level of Education and Sex over Lifespan}](images/wages_by_edu_over_lifespan.png)
@@ -370,46 +373,73 @@ M6 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX * OCCUPATION, data = wage
 summary(M6)
 ```
 
-In model 6 
-```{r}
-p <- ggplot( wages, aes ( x = SEX, y = WAGE) )
-p + geom_boxplot() + ggtitle("Wage vs Sex") + facet_wrap(~OCCUPATION)
-```
+In M6 we explore the possiblity that the effect of you occupation on your wage is different for men and women. We can try to see this in a couple ways. If we look at the analysis of variance table for this model we find that the the interaction term between Sex and Occupation is significant.
 
 ```{r}
-p <- ggplot( wages, aes ( x = SEX, y = log(WAGE)) )
-p + geom_boxplot() + ggtitle("log(Wage) vs Sex") + facet_wrap(~OCCUPATION)
+anova(M6)
 ```
 
-Notice that the coefficients on the interaction terms are the differences in the gaps with respect to the gap in occupation other. Notice that the only other bigger gap is in Sales, this is denoted by negative sign on the SexFemale:OccupationSales coefficient
-
-# Adding Other Variables and Making New Models
+Another way to try to visualize this is by looking at the mean wages for men and women without controlling for Education and Experience.
 
 ```{r}
-wages$resid_M5 <- resid(M5)
-p <- ggplot( wages, aes ( x = UNION, y = resid_M5) )
-p + geom_boxplot()
+ggplot(data=wages, aes(x=OCCUPATION, y=WAGE, fill=SEX)) +
+geom_bar(stat="summary", fun.y = "mean", position=position_dodge())
 ```
 
-```{r echo=FALSE}
-M6 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX*OCCUPATION + UNION, data = wages)
-summary(M6)
-```
+When controlling for education and experience we find the following wage gaps between men and women. Negative percentages should be interpretted as the percentage amount of wage females make less than men while controlling for education and experience.
 
 ```{r}
-wages$resid_M6 <- resid(M6)
-p <- ggplot( wages, aes ( x = SOUTH, y = resid_M6) )
-p + geom_boxplot()
+M6_summary <- summary(M6)
+occs <- c(levels(wages$OCCUPATION))
+occ_gaps <- percent(c(coef(M6_summary)[4],coef(M6_summary)[4] + coef(M6_summary)[10], coef(M6_summary)[4] + coef(M6_summary)[11],coef(M6_summary)[4] + coef(M6_summary)[12], coef(M6_summary)[4] + coef(M6_summary)[13],coef(M6_summary)[4] + coef(M6_summary)[14]))
+occ_men <- c(126,34,21,21,34,53)
+occ_women <- c(30,21,17,76,49,52)
+occ_gap_df <- data.frame(occs,occ_gaps,occ_men,occ_women)
+
+names(occ_gap_df) <- c("Occupation", "Male/Female Wage Gap", "# Men", "# Women")
+occ_gap_df
+kable(occ_gap_df, caption = "Wage Gaps for Females Compared to Males")
+```
+
+The occupation specific wage gaps are interesting. As we would expect the wage gap in occupation Other is very large since it is as if we are not controlling for occupation at all. In management, professional and clerical jobs we find that the wage gap between men and women drastically decreases. In the service industry we find that the wage gap is at about the same level as before we controlled for occupation. However, in the sales occupation we found that the wage gap between men and women is massive, women make almost 50% less than men of the same level of education and experience. 
+
+Looking back at the results from the analysis of variance we found that overall the interaction between Sex and Occupation is signifcant enough to include in our model. When we looked at each of the significances and confidence intervals for each occupation-specific wage gap we found that they depend on the significance of the reference variable in our model to some extent. This is why we included the number of men and women in each occupation in our table so you can get a sense of what these wage gap numbers are calculated from.
+
+Finally, to conclude model 6, we found that our $R^2$ increased to 0.3526 and our $RSE$ decreased to 0.4299.
+
+
+# Model 7: log(WAGE) ~ EDUCATION + SEX + sqrt(EXPERIENCE+1) + OCCUPATION + UNION
+
+In our final model we would like to account for union status. This is a main effects model which means we are going against model 6 because if we were to try to estimate the occupation- specific wage gap accounting for union status we would not have enough data in each occupation to make a reasonable claim. In the table below we can see that some occupations hardly have any unionized memebers. When we break it down by Sex to estimate the occupation-specific wage gap this problem only gets worse.
+
+```{r}
+occ_un_df <-data.frame(wages %>% 
+  group_by(OCCUPATION, UNION) %>%
+  summarise(no_rows = length(UNION)))
+names(occ_un_df) <- c("Occupation", "Union Status", "Number of People")
+kable(occ_un_df)
 ```
 
 
 
+```{r}
+M7 <- lm( log(WAGE) ~ EDUCATION + tranEXPERIENCE + SEX + OCCUPATION + UNION, data = wages)
+summary(M7)
+```
 
-# Caveats and Final Notes
+In model 7 we find that women on average earn 20.7% less than men when controlling for all the variables in model 7. This claim is significant because the confidence interval for the coefficient on Sex does not contain zero. Also, we find that unionized workers make on average 20.8% more than non-unionized workers when controlling for all other variables. This claim is also significant as supported by the confidence interval of the union coefficient not containing zero. Something to note about the "Union Gap" is that it is overestimated because it only considers your raw wage and not your wage net of union dues. Lastly, our  $R^2$ increased to 0.3556 compared to model 5 and our $RSE$ decreased to 0.4273.
 
+# Conclusion 
 
+To wrap up our investigation of this recently culturally relevant issue we have found evidence to support the existence of a male/female wage gap. In all of our models this wage gap has been both present and significant. We should also note that as we added more potential determinants of wage to our models, the wage gap seemed to decrease. Initially, the wage gap between men and women was around 23% not acccounting for any other variables. When we accounted for level of education, years of experience, occupation, and union status this number decreased to 20%. However, the largest changes occured when we accounted for differences in wage gaps in each occupation. Looking at occupation-specific wage gaps the male/female wage gap decreased to about 6% in clerical occupations and about 10% in management and professional jobs. The "outlier" occupation in this sense was sales which had a very large male/female wage gap of almost 50%. At this moment we can't offer an explaination as to why the wage gap exists beyond the parameters we examined and leave that for future research and interpretation.
 
+# Caveats
 
+Here are some of our final thoughts we had while doing this project:
+
+* Our $R^2$ is fairly low and our $RSE$ is pretty high in all of our models. Since the focus of our project is to try estimate the wage gap rather than predict wages we can accept errors of about 40% in our model.
+* In the future we might want to use the entire CPS wage dataset rather than a random sample.
+* One major area in which this paper is lacking is in the application of causal inference. When we add variables to our model we aren't considering the effects of any potential mediator variables like occupation.
 
 
 
